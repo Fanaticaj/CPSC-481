@@ -24,6 +24,13 @@ class PlayerBlackjack:
                     running = False  # Player busts, end game
             elif keys[pygame.K_s]:  # Player chooses to "Stand"
                 running = False  # End player's turn, proceed to check winner
+            elif keys[pygame.K_d]: # Player chooses to "Double Down"
+                if len(self.game.player_hand) == 2:  # Can only double on first two cards
+                    self.game.deal_card(self.game.player_hand)
+                    running = False  # End player's turn after doubling
+                else:
+                    # Optionally, display a message that doubling is not allowed
+                    pass
 
             # Display the game state
             self.display_game_state()
