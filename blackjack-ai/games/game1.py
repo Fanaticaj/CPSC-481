@@ -15,6 +15,7 @@ class Blackjack:
 
     def deal_card(self, hand):
         hand.append(self.deck.pop())
+    
 
     def hand_value(self, hand):
         value = 0
@@ -48,6 +49,12 @@ class Blackjack:
             return "Player Wins!"
         else:
             return "Dealer Wins!"
+    
+    def has_usable_ace(self, hand):
+        """Check if the hand has a usable Ace (counts as 11 without busting)."""
+        total_value = self.hand_value(hand)
+        # Check for an Ace in the hand and if total <= 21 with Ace counted as 11
+        return any(card == 'A' for card, suit in hand) and total_value <= 21
 
     def new_game(self):
         self.player_hand = []
@@ -58,3 +65,12 @@ class Blackjack:
         self.deal_card(self.dealer_hand)
         self.deal_card(self.player_hand)
         self.deal_card(self.dealer_hand)
+    
+    def is_bust(self, hand):
+        return self.hand_value(hand) > 21
+    
+    def play_dealer_hand(self):
+        """Play the dealer's hand according to standard Blackjack rules."""
+        while self.hand_value(self.dealer_hand) < 17:
+            self.deal_card(self.dealer_hand)
+        return self.hand_value(self.dealer_hand)
