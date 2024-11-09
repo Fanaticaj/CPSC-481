@@ -1,5 +1,5 @@
 import random
-
+import logging
 class Blackjack:
     def __init__(self):
         self.deck = self.create_deck()
@@ -15,7 +15,6 @@ class Blackjack:
 
     def deal_card(self, hand):
         hand.append(self.deck.pop())
-    
 
     def hand_value(self, hand):
         value = 0
@@ -25,15 +24,17 @@ class Blackjack:
                 value += int(card)
             elif card in ['J', 'Q', 'K']:
                 value += 10
-            else:
+            elif card == 'A':
                 value += 11
                 aces += 1
 
-        # Adjust for aces being 1 or 11
-        while value > 21 and aces:
+    # Adjust for aces being 1 or 11
+        while value > 21 and aces > 0:
             value -= 10
             aces -= 1
+
         return value
+
 
     def check_winner(self):
         player_val = self.hand_value(self.player_hand)
@@ -41,6 +42,8 @@ class Blackjack:
 
         if player_val > 21:
             return "Player Busts! Dealer Wins."
+        elif player_val == 21:
+            return "Player Wins! Blackjack!"
         elif dealer_val > 21:
             return "Dealer Busts! Player Wins."
         elif player_val == dealer_val:
@@ -67,7 +70,10 @@ class Blackjack:
         self.deal_card(self.dealer_hand)
     
     def is_bust(self, hand):
-        return self.hand_value(hand) > 21
+        if self.hand_value(hand) > 21:
+            logging.warning(f"Bust detected: Hand={hand}, Value={self.hand_value(hand)}")
+            return True
+        return False
     
     def play_dealer_hand(self):
         """Play the dealer's hand according to standard Blackjack rules."""
