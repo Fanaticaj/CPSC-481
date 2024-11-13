@@ -70,6 +70,31 @@ for episode in range(episodes):
             done = True  # Game ends on Stand
 
             next_state = None  # Terminal state for the purpose of Q-learning
+        
+        elif action == "Double":
+            # Player doubles down: hits once and then stands
+            player_blackjack.game.double_down(player_hand)
+            player_total = player_blackjack.game.hand_value(player_hand)
+            next_state = (player_total, dealer_card, player_blackjack.game.has_usable_ace(player_hand))
+
+            # Check if player busts after doubling down
+            if player_blackjack.game.is_bust(player_hand):
+                reward = -1  # Immediate loss
+            else:
+                # Dealer plays their hand
+                dealer_total = player_blackjack.game.play_dealer_hand()
+                if dealer_total > 21 or player_total > dealer_total:
+                    reward = 1  # Player wins
+                elif player_total < dealer_total:
+                    reward = -1  # Player loses
+                else:
+                    reward = 0  # Draw
+
+            done = True  # Player must stand after doubling down
+
+            # Update Q-value for "Double"
+            update_q_value(state, action, reward, next_state)
+            continue
 
         # Update Q-value for the (state, action) pair
         update_q_value(state, action, reward, next_state)

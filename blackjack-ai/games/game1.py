@@ -75,6 +75,14 @@ class Blackjack:
             return True
         return False
     
+    def double_down(self, hand):
+        """Double down: Hit once, then stand with the new total."""
+        logging.info("Player chooses to double down.")
+        self.deal_card(hand)  # Player takes one additional card
+        logging.info(f"Hand after double down: {hand}, Total: {self.hand_value(hand)}")
+        return self.hand_value(hand)  # The hand must stand immediately after this.
+
+    
     def play_dealer_hand(self):
         """Play the dealer's hand according to standard Blackjack rules."""
         while self.hand_value(self.dealer_hand) < 17:

@@ -27,6 +27,9 @@ class PlayerBlackjack:
                 self.game.deal_card(self.game.player_hand)
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
+            elif action == "Double":
+                self.game.deal_card(self.game.player_hand)
+                running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
                 running = False  # End player's turn, proceed to check winner
 
@@ -40,7 +43,7 @@ class PlayerBlackjack:
             self.display_result()
 
     def get_player_action(self):
-        """Return 'Hit' or 'Stand' based on player input or policy."""
+        """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
         if self.screen:
             # Handle interactive keys if screen is present
             keys = pygame.key.get_pressed()
@@ -48,6 +51,8 @@ class PlayerBlackjack:
                 return "Hit"
             elif keys[pygame.K_s]:
                 return "Stand"
+            elif keys[pygame.K_d]:
+                return "Double"
         else:
             # In headless mode, return random or policy-based actions
             return "Hit" if random.random() < 0.5 else "Stand"  # Example: random action for testing
