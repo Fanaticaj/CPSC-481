@@ -1,58 +1,63 @@
 import pygame
-from games.game2 import SpanishBlackjack
+from games.game2 import SpanishBlackjack  
+import random
 
-class PlayerBlackjack:
-    def __init__(self, screen):
+class PlayerSpanishBlackjack:
+    def __init__(self, screen=None):
         self.screen = screen
-        self.game = SpanishBlackjack() 
-        self.font = pygame.font.Font(None, 36)
+        self.game = SpanishBlackjack()
+        if self.screen:
+            pygame.font.init()  # Initialize fonts if using graphics
+            self.font = pygame.font.Font(None, 36)
+        else:
+            self.font = None  # No font needed in headless mode
 
     def run(self):
         self.game.new_game()
-
         running = True
-        player_turn = True
-
         while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-            if player_turn:
-                # Handle player input for hitting or standing
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_h]:  # Player chooses to "Hit"
-                    self.game.deal_card(self.game.player_hand)
-                    if self.game.hand_value(self.game.player_hand) > 21:
-                        running = False  # Player busts, end game
-                        break
-                    # Check for special payouts in Spanish 21
-                    special_payout = self.game.check_special_payout(self.game.player_hand)
-                    if special_payout:
-                        self.display_special_payout(special_payout)
+            if self.screen:
+                # Handle Pygame events if a screen is present
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
                         running = False
-                        break
-                elif keys[pygame.K_s]:  # Player chooses to "Stand"
-                    player_turn = False  # End player's turn, dealer plays next
 
-            if not player_turn:  # Dealer's turn
-                self.dealer_turn()
-                running = False  # End the game after dealer's turn
+            # Handle player actions for hitting or standing
+            action = self.get_player_action()
+            if action == "Hit":
+                self.game.deal_card(self.game.player_hand)
+                if self.game.hand_value(self.game.player_hand) > 21:
+                    running = False  # Player busts, end game
+            elif action == "Stand":
+                running = False  # End player's turn, proceed to check winner
 
-            # Display the game state
-            self.display_game_state()
+            # Display game state if screen is available
+            if self.screen:
+                self.display_game_state()
+                pygame.display.flip()
 
-            pygame.display.flip()
+        # Dealer plays their hand
+        self.game.play_dealer_hand()
 
-        # After the loop ends, display the game result
-        self.display_result()
+        # Display result if screen is available
+        if self.screen:
+            self.display_result()
 
-    def dealer_turn(self):
-        # Dealer hits until the value of the hand is at least 17
-        while self.game.hand_value(self.game.dealer_hand) < 17:
-            self.game.deal_card(self.game.dealer_hand)
+    def get_player_action(self):
+        """Return 'Hit' or 'Stand' based on player input or policy."""
+        if self.screen:
+            # Handle interactive keys if screen is present
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_h]:
+                return "Hit"
+            elif keys[pygame.K_s]:
+                return "Stand"
+        else:
+            # In headless mode, return random or policy-based actions
+            return "Hit" if random.random() < 0.5 else "Stand"  # Example: random action for testing
 
     def display_game_state(self):
+        """Display the player's and dealer's hand values on screen."""
         player_val = self.game.hand_value(self.game.player_hand)
         dealer_val = self.game.hand_value(self.game.dealer_hand[:1])  # Dealer shows only one card
 
@@ -63,17 +68,17 @@ class PlayerBlackjack:
         self.screen.blit(player_text, (50, 50))
         self.screen.blit(dealer_text, (50, 150))
 
-    def display_special_payout(self, message):
-        result_text = self.font.render(message, True, (255, 255, 255))
-        self.screen.fill((0, 100, 0))  # Refill the screen before displaying result
+    def display_result(self):
+        """Display the game result on screen."""
+        result = self.game.check_winner()
+        result_text = self.font.render(result, True, (255, 255, 255))
         self.screen.blit(result_text, (50, 300))
         pygame.display.flip()
         pygame.time.wait(3000)
 
-    def display_result(self):
-        result = self.game.check_winner()  # Check who wins based on final hands
-        result_text = self.font.render(result, True, (255, 255, 255))
-        self.screen.fill((0, 100, 0))  # Refill the screen before displaying result
-        self.screen.blit(result_text, (50, 300))
-        pygame.display.flip()
-        pygame.time.wait(3000)
+# Example usage:
+if __name__ == "__main__":
+    screen = pygame.display.set_mode((800, 600))
+    game = PlayerSpanishBlackjack(screen=screen)
+    game.run()
+    pygame.quit()

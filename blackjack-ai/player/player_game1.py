@@ -1,6 +1,6 @@
 import pygame
 from games.game1 import Blackjack
-
+import random
 class PlayerBlackjack:
     def __init__(self, screen=None):
         self.screen = screen

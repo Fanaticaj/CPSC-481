@@ -1,34 +1,35 @@
-# train.py for normal blackjack rules.
+# train_spanishbj.py for Spanish Blackjack rules.
 import logging
 import random
-from .q_table_manager import save_q_table_json
-from player.player_game1 import PlayerBlackjack  
-from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table
+from .q_table_spanish_manager import save_q_table_spanish_json
+from player.player_game2 import PlayerSpanishBlackjack 
+from .basic_strategy_spanishbj import initialize_state_action, choose_action, update_q_value, q_table
 import pygame
 
 logging.basicConfig(level=logging.INFO)
 
 pygame.init()
 screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
-player_blackjack = PlayerBlackjack(screen)
+player_spanish_blackjack = PlayerSpanishBlackjack(screen)
+
 # Training parameters
 episodes = 100000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
 
 # Training loop
 for episode in range(episodes):
-    # Create a new instance of the blackjack game in non-graphical mode
-    player_blackjack = PlayerBlackjack()  
+    # Create a new instance of the Spanish Blackjack game in non-graphical mode
+    player_spanish_blackjack = PlayerSpanishBlackjack()
 
     # Initialize the game state
-    player_blackjack.game.deal_card(player_blackjack.game.player_hand)  # Deal first card to player
-    player_blackjack.game.deal_card(player_blackjack.game.player_hand)  # Deal second card to player
-    player_hand = player_blackjack.game.player_hand  # Retrieve the player's hand after dealing
-    player_blackjack.game.deal_card(player_blackjack.game.dealer_hand)  # Deal first card to dealer
-    dealer_card = player_blackjack.game.dealer_hand[0]  # Retrieve dealer’s visible card
-  # Check if player has a usable Ace
-    player_total = player_blackjack.game.hand_value(player_hand)
-    usable_ace = player_blackjack.game.has_usable_ace(player_hand)  
+    player_spanish_blackjack.game.deal_card(player_spanish_blackjack.game.player_hand)  # Deal first card to player
+    player_spanish_blackjack.game.deal_card(player_spanish_blackjack.game.player_hand)  # Deal second card to player
+    player_hand = player_spanish_blackjack.game.player_hand  # Retrieve the player's hand after dealing
+    player_spanish_blackjack.game.deal_card(player_spanish_blackjack.game.dealer_hand)  # Deal first card to dealer
+    dealer_card = player_spanish_blackjack.game.dealer_hand[0]  # Retrieve dealer’s visible card
+    # Check if player has a usable Ace
+    player_total = player_spanish_blackjack.game.hand_value(player_hand)
+    usable_ace = player_spanish_blackjack.game.has_usable_ace(player_hand)
     state = (player_total, dealer_card, usable_ace)
 
     # Initialize Q-values for the state if not already present
@@ -42,13 +43,13 @@ for episode in range(episodes):
         # Execute the chosen action
         if action == "Hit":
             # Player takes a hit
-            player_blackjack.game.deal_card(player_hand)
-            player_total = player_blackjack.game.hand_value(player_hand)
-            usable_ace = player_blackjack.game.has_usable_ace(player_hand)
+            player_spanish_blackjack.game.deal_card(player_hand)
+            player_total = player_spanish_blackjack.game.hand_value(player_hand)
+            usable_ace = player_spanish_blackjack.game.has_usable_ace(player_hand)
             next_state = (player_total, dealer_card, usable_ace)
 
             # Check if player busts
-            if player_blackjack.game.is_bust(player_hand):
+            if player_spanish_blackjack.game.is_bust(player_hand):
                 reward = -1
                 done = True
                 update_q_value(state, action, reward, None)  # Terminal update
@@ -58,7 +59,7 @@ for episode in range(episodes):
 
         elif action == "Stand":
             # Dealer's turn and determine game outcome
-            dealer_total = player_blackjack.game.play_dealer_hand()  # Play dealer's hand to completion
+            dealer_total = player_spanish_blackjack.game.play_dealer_hand()  # Play dealer's hand to completion
 
             # Determine the game outcome
             if dealer_total > 21 or player_total > dealer_total:
@@ -81,4 +82,4 @@ for episode in range(episodes):
         print(f"Episode {episode + 1}/{episodes} completed")
 
 print("Training completed. Q-table has been updated.")
-save_q_table_json(q_table)
+save_q_table_spanish_json(q_table)
