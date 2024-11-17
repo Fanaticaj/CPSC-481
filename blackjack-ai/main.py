@@ -1,5 +1,5 @@
 import pygame
-from .player.player_game1 import PlayerBlackjack
+from player.player_game1 import PlayerBlackjack
 
 # Initialize Pygame
 pygame.init()

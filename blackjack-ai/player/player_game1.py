@@ -32,13 +32,13 @@ class PlayerBlackjack:
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
                 running = False  # End player's turn, proceed to check winner
-            elif keys[pygame.K_d]: # Player chooses to "Double Down"
-                if len(self.game.player_hand) == 2:  # Can only double on first two cards
-                    self.game.deal_card(self.game.player_hand)
-                    running = False  # End player's turn after doubling
-                else:
-                    # Optionally, display a message that doubling is not allowed
-                    pass
+            # elif keys[pygame.K_d]: # Player chooses to "Double Down"
+            #     if len(self.game.player_hand) == 2:  # Can only double on first two cards
+            #         self.game.deal_card(self.game.player_hand)
+            #         running = False  # End player's turn after doubling
+            #     else:
+            #         # Optionally, display a message that doubling is not allowed
+            #         pass
 
             # Display game state if screen is available
             if self.screen:
@@ -73,6 +73,9 @@ class PlayerBlackjack:
         dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
 
         self.screen.fill((0, 100, 0))  # Green background
+        pygame.draw.rect(self.screen, 'white', [400, 100, 100, 150], 0, 5)
+        player_score = pygame.font.Font(None, 22).render(str(player_val), True, "black")
+        self.screen.blit(player_score, (400,100))
         self.screen.blit(player_text, (50, 50))
         self.screen.blit(dealer_text, (50, 150))
 
