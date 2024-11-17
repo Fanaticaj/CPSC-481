@@ -1,3 +1,5 @@
+# -------------------------- European Blackjack --------------------------
+
 import random
 import pygame
 
