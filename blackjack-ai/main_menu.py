@@ -1,13 +1,13 @@
 import pygame, sys
 from button import Button
 from player.player_game1 import PlayerBlackjack
-from player.player_game2 import SpanishBlackjack
-from player.player_game3 import PlayerBlackjackSwitch  # Correct import for Blackjack Switch
+from player.player_game2 import PlayerSpanishBlackjack
+from player.player_game3 import PlayerBlackjackSwitch
 
 pygame.init()
 
 SCREEN = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption("Black Jack Main menu")
+pygame.display.set_caption("Blackjack Main menu")
 
 BG = pygame.image.load("images/Background.png")
 
@@ -20,7 +20,7 @@ def play():
 
         SCREEN.fill("black")
 
-        PLAY_TEXT = get_font(45).render("Play black Jack", True, "White")
+        PLAY_TEXT = get_font(45).render("Play Blackjack", True, "White")
         PLAY_RECT = PLAY_TEXT.get_rect(center=(640, 260))
         SCREEN.blit(PLAY_TEXT, PLAY_RECT)
 
@@ -46,7 +46,7 @@ def options():
 
         SCREEN.fill("blue")
 
-        OPTIONS_TEXT = get_font(45).render("Other black Jack Game", True, "Black")
+        OPTIONS_TEXT = get_font(45).render("Other Blackjack Game", True, "Black")
         OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(640, 260))
         SCREEN.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
@@ -102,6 +102,9 @@ def main_menu():
                     player_blackjack.run()
                 if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS):
                     options()
+                if black_Jack2.checkForInput(MENU_MOUSE_POS):
+                    player_blackjack_spanish = PlayerSpanishBlackjack(SCREEN)
+                    player_blackjack_spanish.run()
                 if black_Jack3.checkForInput(MENU_MOUSE_POS):  # New logic for Blackjack Switch
                     player_blackjack_switch = PlayerBlackjackSwitch(SCREEN)
                     player_blackjack_switch.run()
