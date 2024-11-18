@@ -3,7 +3,7 @@
 import random
 import pygame
 
-class Blackjack:
+class EBlackjack:
     def __init__(self):
         self.deck = self.create_deck()
         self.player_hand = []
