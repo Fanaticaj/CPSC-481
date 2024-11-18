@@ -1,6 +1,7 @@
 # -------------------------- Traditional Blackjack --------------------------
 import random
 import logging
+
 class Blackjack:
     def __init__(self):
         self.deck = self.create_deck()

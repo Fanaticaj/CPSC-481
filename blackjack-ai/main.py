@@ -1,5 +1,6 @@
 import pygame
 from player.player_game1 import PlayerBlackjack
+import main_menu
 
 # Initialize Pygame
 pygame.init()
@@ -16,11 +17,9 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-
-        # Placeholder start screen logic
-        # Assuming we're just playing Blackjack for now
-        player_blackjack = PlayerBlackjack(screen)
-        player_blackjack.run()
+                main_menu.main_menu()
+#        player_blackjack = PlayerBlackjack(screen)
+#       player_blackjack.run()
 
         running = False  # Exit after one game for now
 

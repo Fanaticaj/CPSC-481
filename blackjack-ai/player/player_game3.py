@@ -1,10 +1,10 @@
 import pygame
-from games.game1 import Blackjack
+from games.game3 import BlackjackSwitch
 
 class PlayerBlackjack:
     def __init__(self, screen):
         self.screen = screen
-        self.game = Blackjack()
+        self.game = BlackjackSwitch()
         self.font = pygame.font.Font(None, 36)
 
     def run(self):
