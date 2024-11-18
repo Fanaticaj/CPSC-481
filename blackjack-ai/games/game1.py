@@ -7,6 +7,7 @@ class Blackjack:
         self.deck = self.create_deck()
         self.player_hand = []
         self.dealer_hand = []
+        self.split_hands = []
     
     def create_deck(self):
         suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
@@ -90,3 +91,19 @@ class Blackjack:
         while self.hand_value(self.dealer_hand) < 17:
             self.deal_card(self.dealer_hand)
         return self.hand_value(self.dealer_hand)
+    
+    def can_split(self, hand):
+        """Check if the hand can be split."""
+        return len(hand) == 2 and hand[0][0] == hand[1][0] # hand[0] is first card, hand[1] is second card, checks for same rank.
+    
+    def split_hand(self, hand):
+        """Split the hand into two separate hands."""
+        logging.info("Player chooses to split the hand.")
+        if not self.can_split(hand):
+            logging.warning("Hand cannot be split.")
+        split_hand1 = [hand[0]]
+        split_hand2 = [hand[1]]
+        self.deal_card(split_hand1)
+        self.deal_card(split_hand2)
+        self.split_hands.extend([split_hand1, split_hand2])
+        return self.split_hands

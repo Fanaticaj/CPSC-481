@@ -4,7 +4,7 @@ alpha = 0.1 # Learning Rate
 gamma = 0.9 # Discount Factor
 epsilon = 0.1 # Exploration rate
 
-actions = ["Hit", "Stand", "Double"] 
+actions = ["Hit", "Stand", "Double", "Split"] 
 
 q_table = {}
 
@@ -67,6 +67,28 @@ basic_strategy_q_table = {
     ('A,9', 7): 'S', ('A,9', 8): 'S', ('A,9', 9): 'S', ('A,9', 10): 'S', ('A,9', 'A'): 'S',
     ('A,10', 2): 'S', ('A,10', 3): 'S', ('A,10', 4): 'S', ('A,10', 5): 'S', ('A,10', 6): 'S',
     ('A,10', 7): 'S', ('A,10', 8): 'S', ('A,10', 9): 'S', ('A,10', 10): 'S', ('A,10', 'A'): 'S',
+
+    # Splitting Totals
+    ('A,A', 2): 'Y', ('A,A', 3): 'Y', ('A,A', 4): 'Y', ('A,A', 5): 'Y', ('A,A', 6): 'Y',
+    ('A,A', 7): 'Y', ('A,A', 8): 'Y', ('A,A', 9): 'Y', ('A,A', 10): 'Y', ('A,A', 'A'): 'Y',
+    ('10,10', 2): 'N', ('10,10', 3): 'N', ('10,10', 4): 'N', ('10,10', 5): 'N', ('10,10', 6): 'N',
+    ('10,10', 7): 'N', ('10,10', 8): 'N', ('10,10', 9): 'N', ('10,10', 10): 'N', ('10,10', 'A'): 'N',
+    ('9,9', 2): 'Y', ('9,9', 3): 'Y', ('9,9', 4): 'Y', ('9,9', 5): 'Y', ('9,9', 6): 'Y',
+    ('9,9', 7): 'N', ('9,9', 8): 'Y', ('9,9', 9): 'Y', ('9,9', 10): 'N', ('9,9', 'A'): 'N',
+    ('8,8', 2): 'Y', ('8,8', 3): 'Y', ('8,8', 4): 'Y', ('8,8', 5): 'Y', ('8,8', 6): 'Y',
+    ('8,8', 7): 'Y', ('8,8', 8): 'Y', ('8,8', 9): 'Y', ('8,8', 10): 'Y', ('8,8', 'A'): 'Y',
+    ('7,7', 2): 'Y', ('7,7', 3): 'Y', ('7,7', 4): 'Y', ('7,7', 5): 'Y', ('7,7', 6): 'Y',
+    ('7,7', 7): 'Y', ('7,7', 8): 'N', ('7,7', 9): 'N', ('7,7', 10): 'N', ('7,7', 'A'): 'N',
+    ('6,6', 2): 'Y', ('6,6', 3): 'Y', ('6,6', 4): 'Y', ('6,6', 5): 'Y', ('6,6', 6): 'Y',
+    ('6,6', 7): 'N', ('6,6', 8): 'N', ('6,6', 9): 'N', ('6,6', 10): 'N', ('6,6', 'A'): 'N',
+    ('5,5', 2): 'N', ('5,5', 3): 'N', ('5,5', 4): 'N', ('5,5', 5): 'N', ('5,5', 6): 'N',
+    ('5,5', 7): 'N', ('5,5', 8): 'N', ('5,5', 9): 'N', ('5,5', 10): 'N', ('5,5', 'A'): 'N',
+    ('4,4', 2): 'N', ('4,4', 3): 'N', ('4,4', 4): 'N', ('4,4', 5): 'Y', ('4,4', 6): 'Y',
+    ('4,4', 7): 'N', ('4,4', 8): 'N', ('4,4', 9): 'N', ('4,4', 10): 'N', ('4,4', 'A'): 'N',
+    ('3,3', 2): 'Y', ('3,3', 3): 'Y', ('3,3', 4): 'Y', ('3,3', 5): 'Y', ('3,3', 6): 'Y',
+    ('3,3', 7): 'Y', ('3,3', 8): 'N', ('3,3', 9): 'N', ('3,3', 10): 'N', ('3,3', 'A'): 'N',
+    ('2,2', 2): 'Y', ('2,2', 3): 'Y', ('2,2', 4): 'Y', ('2,2', 5): 'Y', ('2,2', 6): 'Y',
+    ('2,2', 7): 'Y', ('2,2', 8): 'N', ('2,2', 9): 'N', ('2,2', 10): 'N', ('2,2', 'A'): 'N',
 }
 
 # Initialize Q-values for a given state-action pair
@@ -76,7 +98,7 @@ def initialize_state_action(state):
     This includes all states, even those where player_total > 21 (bust states).
     """
     if state not in q_table:
-        q_table[state] = {'Hit': 0.0, 'Stand': 0.0, 'Double': 0.0}  # Initialize Q-values for all actions
+        q_table[state] = {'Hit': 0.0, 'Stand': 0.0, 'Double': 0.0, 'Split': 0.0}  # Initialize Q-values for all actions
         logging.info(f"Initialized state in Q-table: {state}")
     else:
         logging.debug(f"State already initialized: {state}")
@@ -84,6 +106,11 @@ def initialize_state_action(state):
 # Define function to choose an action based on epsilon-greedy policy and basic strategy
 def choose_action(state):
     player_total, dealer_card, usable_ace = state
+
+    if isinstance(player_total, tuple):
+        strategy_action = basic_strategy_q_table.get((f"{player_total[0]},{player_total[1]}", dealer_card), None)
+        if strategy_action == 'Y':
+            return "Split"
 
     # Convert 'H' and 'S' to actual action strings for Q-learning
     strategy_action = basic_strategy_q_table.get((player_total, dealer_card), None)
@@ -103,7 +130,7 @@ def choose_action(state):
 
     # Use epsilon-greedy policy if no basic strategy recommendation or for exploration
     if random.uniform(0, 1) < epsilon:  # Exploration
-        return random.choice(["Hit", "Stand"])
+        return random.choice(actions)
     else:  # Exploitation
         return max(q_table[state], key=q_table[state].get)
 

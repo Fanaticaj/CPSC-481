@@ -15,7 +15,7 @@ player_spanish_blackjack = PlayerSpanishBlackjack(screen)
 # Training parameters
 episodes = 100000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
-
+wins, losses, draws = 0, 0, 0
 # Training loop
 for episode in range(episodes):
     # Create a new instance of the Spanish Blackjack game in non-graphical mode
@@ -72,14 +72,45 @@ for episode in range(episodes):
 
             next_state = None  # Terminal state for the purpose of Q-learning
 
-        # Update Q-value for the (state, action) pair
-        update_q_value(state, action, reward, next_state)
+        elif action == "Double":
+            # Player doubles down
+            player_spanish_blackjack.game.double_down(player_hand)
+            player_total = player_spanish_blackjack.game.hand_value(player_hand)
+            next_state = (player_total, dealer_card, player_spanish_blackjack.game.has_usable_ace(player_hand))
 
-        # Move to the next state
+            if player_spanish_blackjack.game.is_bust(player_hand):
+                reward = -1
+            else:
+                # Dealer plays the hand
+                dealer_total = player_spanish_blackjack.game.play_dealer_hand() 
+                if dealer_total > 21 or player_total > dealer_total:
+                    reward = -1
+                    wins += 1
+                elif player_total < dealer_total:
+                    reward = -1
+                    losses += 1
+                else:
+                    reward = 0
+                    draws += 1
+            
+            done = True
+
+        # Update Q-value for the (state, action) pair
+            update_q_value(state, action, reward, next_state)
+            continue
+
+        update_q_value(state, action, reward, next_state)
         state = next_state
+        
 
     if (episode + 1) % print_interval == 0:
+        total_games = wins + losses + draws
         print(f"Episode {episode + 1}/{episodes} completed")
+        win_rate = wins / (wins + losses + draws)
+        loss_rate = losses / (wins + losses + draws)
+        draw_rate = draws / (wins + losses + draws)
+        print(f"Episode {episode + 1}/{episodes} completed")
+        print(f"Win Rate: {win_rate:.2%}, Loss Rate: {loss_rate:.2%}, Draw Rate: {draw_rate:.2%}")
 
 print("Training completed. Q-table has been updated.")
 save_q_table_spanish_json(q_table)
