@@ -61,6 +61,6 @@ class EBlackjack:
 
         # Initial card dealing
         self.deal_card(self.player_hand)
-        self.deal_card(self.dealer_hand)
+        #self.deal_card(self.dealer_hand)
         self.deal_card(self.player_hand)
         self.deal_card(self.dealer_hand)

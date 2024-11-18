@@ -25,9 +25,11 @@ class PlayerEBlackjack:
             keys = pygame.key.get_pressed()
             if keys[pygame.K_h]:  # Player chooses to "Hit"
                 self.game.deal_card(self.game.player_hand)
+                self.game.deal_card(self.game.dealer_hand)
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False
             elif keys[pygame.K_s]:  # Player chooses to "Stand"
+                self.game.deal_card(self.game.dealer_hand)
                 running = False
 
             pygame.display.flip()

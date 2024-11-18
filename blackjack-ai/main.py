@@ -1,6 +1,7 @@
 import pygame
 import main_menu
 
+
 # Initialize Pygame
 pygame.init()
 

@@ -1,15 +1,16 @@
-import pygame, sys
+import pygame, sys, os
 from button import Button
 from player.player_game1 import PlayerBlackjack
 from player.player_game2 import PlayerSpanishBlackjack
 from player.player_game3 import PlayerBlackjackSwitch
+from player.player_game4 import PlayerEBlackjack
 
 pygame.init()
 
 SCREEN = pygame.display.set_mode((1280, 720))
 pygame.display.set_caption("Blackjack Main menu")
 
-BG = pygame.image.load("images/Background.png")
+BG = pygame.image.load("blackjack-ai\images\Background.png" if os.name == "nt" else "blackjack-ai/images/Background.png")
 
 def get_font(size): 
     return pygame.font.Font(None, size)  # Placeholder for font loading
@@ -74,21 +75,22 @@ def main_menu():
 
         MENU_TEXT = get_font(100).render("Blackjack Main Menu", True, "#b68f40")
         MENU_RECT = MENU_TEXT.get_rect(center=(640, 100))
-        PLAY_BUTTON = Button(image=None, pos=(340, 250), 
+        black_Jack1 = Button(image=None, pos=(340, 250), 
                             text_input="Blackjack", font=get_font(35), base_color="#d7fcd4", hovering_color="White")
-        OPTIONS_BUTTON = Button(image=None, pos=(940, 250), 
+        black_Jack2 = Button(image=None, pos=(940, 250), 
                             text_input="Spanish Blackjack", font=get_font(35), base_color="#d7fcd4", hovering_color="White")
-        black_Jack2 = Button(image=None, pos=(340, 400), 
-                            text_input="European Blackjack", font=get_font(35), base_color="#d7fcd4", hovering_color="White")
         black_Jack3 = Button(image=None, pos=(940, 400), 
                             text_input="Blackjack Switch", font=get_font(35), base_color="#d7fcd4", hovering_color="White")
+        black_Jack4 = Button(image=None, pos=(340, 400), 
+                            text_input="European Blackjack", font=get_font(35), base_color="#d7fcd4", hovering_color="White")
+
         
-        QUIT_BUTTON = Button(image=pygame.image.load("images/Quit Rect.png"), pos=(640, 550), 
+        QUIT_BUTTON = Button(image=pygame.image.load( "blackjack-ai\images\Quit Rect.png" if os.name == "nt" else "blackjack-ai/images/Quit Rect.png"), pos=(640, 550), 
                             text_input="QUIT", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
 
         SCREEN.blit(MENU_TEXT, MENU_RECT)
 
-        for button in [PLAY_BUTTON, OPTIONS_BUTTON, QUIT_BUTTON, black_Jack2, black_Jack3]:
+        for button in [black_Jack1, black_Jack2, QUIT_BUTTON, black_Jack4, black_Jack3]:
             button.changeColor(MENU_MOUSE_POS)
             button.update(SCREEN)
         
@@ -97,17 +99,18 @@ def main_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                if black_Jack1.checkForInput(MENU_MOUSE_POS):
                     player_blackjack = PlayerBlackjack(SCREEN)
                     player_blackjack.run()
-                if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    options()
                 if black_Jack2.checkForInput(MENU_MOUSE_POS):
                     player_blackjack_spanish = PlayerSpanishBlackjack(SCREEN)
                     player_blackjack_spanish.run()
                 if black_Jack3.checkForInput(MENU_MOUSE_POS):  # New logic for Blackjack Switch
                     player_blackjack_switch = PlayerBlackjackSwitch(SCREEN)
                     player_blackjack_switch.run()
+                if black_Jack4.checkForInput(MENU_MOUSE_POS):  # New logic for Blackjack Switch
+                    player_blackjack_european = PlayerEBlackjack(SCREEN)
+                    player_blackjack_european.run()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
