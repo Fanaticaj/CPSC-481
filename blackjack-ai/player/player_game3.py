@@ -7,6 +7,8 @@ class PlayerBlackjackSwitch:
         self.screen = screen
         self.game = BlackjackSwitch()
         self.switch_pressed = False  # To prevent continuous switching
+        self.double_done_hand1 = False  # Track if Hand 1 has doubled
+        self.double_done_hand2 = False  # Track if Hand 2 has doubled
         if self.screen:
             pygame.font.init()  # Initialize fonts if using graphics
             self.font = pygame.font.Font(None, 36)
@@ -44,6 +46,14 @@ class PlayerBlackjackSwitch:
                 self.game.deal_card(self.game.player_hand2)
                 if self.game.hand_value(self.game.player_hand2) > 21:
                     running = False  # Player busts, end game
+            elif action == "Double Hand 1" and not self.double_done_hand1:
+                self.game.deal_card(self.game.player_hand1)
+                self.double_done_hand1 = True
+                running = False  # End player's turn for this hand
+            elif action == "Double Hand 2" and not self.double_done_hand2:
+                self.game.deal_card(self.game.player_hand2)
+                self.double_done_hand2 = True
+                running = False  # End player's turn for this hand
             elif action == "Stand":
                 running = False  # End player's turn, proceed to check winner
 
@@ -55,7 +65,7 @@ class PlayerBlackjackSwitch:
             self.display_full_result()
 
     def get_player_action(self):
-        """Return 'Switch', 'Hit Hand 1', 'Hit Hand 2', or 'Stand' based on player input or policy."""
+        """Return 'Switch', 'Hit Hand 1', 'Hit Hand 2', 'Double Hand 1', 'Double Hand 2', or 'Stand' based on player input or policy."""
         if self.screen:
             keys = pygame.key.get_pressed()
             if keys[pygame.K_s]:
@@ -64,11 +74,15 @@ class PlayerBlackjackSwitch:
                 return "Hit Hand 1"
             elif keys[pygame.K_2]:
                 return "Hit Hand 2"
+            elif keys[pygame.K_q]:
+                return "Double Hand 1"
+            elif keys[pygame.K_w]:
+                return "Double Hand 2"
             elif keys[pygame.K_t]:
                 return "Stand"
         else:
             # In headless mode, return random or policy-based actions
-            return random.choice(["Switch", "Hit Hand 1", "Hit Hand 2", "Stand"])
+            return random.choice(["Switch", "Hit Hand 1", "Hit Hand 2", "Double Hand 1", "Double Hand 2", "Stand"])
 
     def display_game_state(self):
         """Display the game state for both hands and the dealer's visible card."""
