@@ -33,13 +33,12 @@ class PlayerBlackjack:
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
                 running = False  # End player's turn, proceed to check winner
-            # elif keys[pygame.K_d]: # Player chooses to "Double Down"
-            #     if len(self.game.player_hand) == 2:  # Can only double on first two cards
-            #         self.game.deal_card(self.game.player_hand)
-            #         running = False  # End player's turn after doubling
-            #     else:
-            #         # Optionally, display a message that doubling is not allowed
-            #         pass
+            elif action == "Split" and self.game.can_split(self.game.player_hand):
+                split_hands = self.game.split_hand(self.game.player_hand)
+                self.play_split_hands(split_hands)
+                running = False
+
+
 
             # Display game state if screen is available
             if self.screen:
@@ -61,9 +60,26 @@ class PlayerBlackjack:
                 return "Stand"
             elif keys[pygame.K_d]:
                 return "Double"
+            elif keys[pygame.K_p] and self.game.can_split(self.game.player_hand):
+                return "Split"
         else:
             # In headless mode, return random or policy-based actions
             return "Hit" if random.random() < 0.5 else "Stand"  # Example: random action for testing
+    
+    def play_split_hands(self, split_hands):
+        for hand in split_hands:
+            hand_running = True
+            while hand_running:
+                action = self.get_player_action()
+                if action == "Hit":
+                    self.game.deal_card(hand)
+                    if self.game.is_bust(hand):
+                        hand_running = False
+                elif action == "Stand":
+                    hand_running = False
+                elif action == "Double":
+                    self.game.deal_card(hand)
+                    hand_running = False
 
     def display_game_state(self):
         """Display the player's and dealer's hand values on screen."""
