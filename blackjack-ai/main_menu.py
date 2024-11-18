@@ -1,6 +1,8 @@
 import pygame, sys
 from button import Button
 from player.player_game1 import PlayerBlackjack
+from player.player_game2 import SpanishBlackjack
+from player.player_game3 import BlackjackSwitch
 
 pygame.init()
 

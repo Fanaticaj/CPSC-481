@@ -18,8 +18,6 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
                 main_menu.main_menu()
-#        player_blackjack = PlayerBlackjack(screen)
-#       player_blackjack.run()
 
         running = False  # Exit after one game for now
 
