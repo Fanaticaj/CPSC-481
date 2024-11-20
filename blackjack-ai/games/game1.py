@@ -90,20 +90,27 @@ class Blackjack:
         """Play the dealer's hand according to standard Blackjack rules."""
         while self.hand_value(self.dealer_hand) < 17:
             self.deal_card(self.dealer_hand)
+            logging.info(f"Dealer hits: Hand={self.dealer_hand}, Value={self.hand_value(self.dealer_hand)}")
+    
+        if self.hand_value(self.dealer_hand) > 21:
+            logging.warning(f"Dealer Busts! Hand={self.dealer_hand}, Value={self.hand_value(self.dealer_hand)}")
         return self.hand_value(self.dealer_hand)
     
     def can_split(self, hand):
         """Check if the hand can be split."""
         return len(hand) == 2 and hand[0][0] == hand[1][0] # hand[0] is first card, hand[1] is second card, checks for same rank.
     
+    
     def split_hand(self, hand):
         """Split the hand into two separate hands."""
-        logging.info("Player chooses to split the hand.")
+        logging.info(f"Player chooses to split the hand. Current Hand: {hand}")
         if not self.can_split(hand):
-            logging.warning("Hand cannot be split.")
+            logging.warning(f"Hand cannot be split: {hand}")
+            raise ValueError(f"Cannot split hand with different ranks: {hand}")
         split_hand1 = [hand[0]]
         split_hand2 = [hand[1]]
         self.deal_card(split_hand1)
         self.deal_card(split_hand2)
         self.split_hands.extend([split_hand1, split_hand2])
-        return self.split_hands
+        logging.info(f"Split successful: Hand 1: {split_hand1}, Hand 2: {split_hand2}")
+        return split_hand1, split_hand2

@@ -1,8 +1,11 @@
 import random
 import logging
+
 alpha = 0.1 # Learning Rate
 gamma = 0.9 # Discount Factor
-epsilon = 0.1 # Exploration rate
+epsilon = 1.0 # Exploration rate
+epsilon_decay = 0.99999
+min_epsilon = 0.1  # Minimum exploration rate
 
 actions = ["Hit", "Stand", "Double", "Split"] 
 
@@ -104,50 +107,78 @@ def initialize_state_action(state):
         logging.debug(f"State already initialized: {state}")
 
 # Define function to choose an action based on epsilon-greedy policy and basic strategy
-def choose_action(state):
+def choose_action(state, player_hand):
+    logging.info(f"Choosing action for state: {state}, Player Hand: {player_hand}")
+    
+    # Initialize valid actions
+    valid_actions = ["Hit", "Stand", "Double"]
+
+    # Unpack state
     player_total, dealer_card, usable_ace = state
 
-    if isinstance(player_total, tuple):
-        strategy_action = basic_strategy_q_table.get((f"{player_total[0]},{player_total[1]}", dealer_card), None)
-        if strategy_action == 'Y':
-            return "Split"
+    # Check if split is allowed and recommended
+    if len(player_hand) == 2 and player_hand[0][0] == player_hand[1][0]:
+        strategy_split_action = basic_strategy_q_table.get((f"{player_hand[0][0]},{player_hand[1][0]}", dealer_card))
+        if strategy_split_action == 'Y':
+            valid_actions.append("Split")
 
-    # Convert 'H' and 'S' to actual action strings for Q-learning
-    strategy_action = basic_strategy_q_table.get((player_total, dealer_card), None)
+    # Ensure state is initialized in Q-table
+    if state not in q_table:
+        logging.warning(f"State {state} not found in Q-table. Initializing...")
+        initialize_state_action(state)
+    else:
+        logging.info(f"Q-values for state {state}: {q_table[state]}")
+    
+    # Look up basic strategy for this state
+    if isinstance(player_total, tuple):
+        strategy_action = basic_strategy_q_table.get((f"{player_total[0]},{player_total[1]}", dealer_card))
+    else:
+        strategy_action = basic_strategy_q_table.get((player_total, dealer_card))
+    
+    # Map strategy to actual moves
     if strategy_action:
-        if strategy_action in ['H']:
+        if strategy_action == 'H':
             basic_action = "Hit"
-        elif strategy_action in ['S']:
+        elif strategy_action == 'S':
             basic_action = "Stand"
-        elif strategy_action in ['D']:
+        elif strategy_action == 'D':
             basic_action = "Double"
         else:
-            basic_action = "Stand"
+            basic_action = "Stand"  # Fallback to Stand
 
-        # Follow basic strategy action with 90% probability
+        # With 90% probability, follow basic strategy
         if random.uniform(0, 1) < 0.9:
+            logging.info(f"Following basic strategy: {basic_action}")
             return basic_action
-
-    # Use epsilon-greedy policy if no basic strategy recommendation or for exploration
-    if random.uniform(0, 1) < epsilon:  # Exploration
-        return random.choice(actions)
-    else:  # Exploitation
-        return max(q_table[state], key=q_table[state].get)
-
+        else:
+            logging.info(f"Exploring despite strategy: Overriding basic strategy.")
+    
+    # Epsilon-greedy exploration/exploitation
+    if random.uniform(0, 1) < epsilon:
+        action = random.choice(valid_actions)
+        logging.info(f"Exploration: Choosing random action {action} from {valid_actions}")
+        return action
+    else:
+        valid_q_values = {action: q_table[state][action] for action in valid_actions}
+        action = max(valid_q_values, key=valid_q_values.get)
+        logging.info(f"Exploitation: Choosing best action {action} based on Q-values.")
+        return action
 # Define function to update Q-value
 def update_q_value(state, action, reward, next_state):
-    # Handle terminal state where next_state is None
     if next_state is None:
-        next_max = 0  # No future rewards in a terminal state
+        next_max = 0
     else:
-        # Initialize next state in the Q-table if it’s not already there
         if next_state not in q_table:
             initialize_state_action(next_state)
-        next_max = max(q_table[next_state].values())  # Highest Q-value for the next state
-
-    # Q-learning update rule
+        next_max = max(q_table[next_state].values())
+    
     old_value = q_table[state][action]
-    q_table[state][action] = old_value + alpha * (reward + gamma * next_max - old_value)
+    new_value = old_value + alpha * (reward + gamma * next_max - old_value)
+    q_table[state][action] = new_value
+
+    logging.info(
+        f"Updated Q-value for state {state}, action {action}: Old Value = {old_value}, New Value = {new_value}, Reward = {reward}"
+    )
 
 
 # Example state representation

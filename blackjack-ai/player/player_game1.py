@@ -1,7 +1,8 @@
 import pygame
+import logging
 from games.game1 import Blackjack
 import random
-
+from ai.basic_strategy import choose_action
 class PlayerBlackjack:
     def __init__(self, screen=None):
         self.screen = screen
@@ -16,40 +17,37 @@ class PlayerBlackjack:
         self.game.new_game()
         running = True
         while running:
-            if self.screen:
-                # Only handle Pygame events if a screen is present
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
-
-            # Handle player actions for hitting or standing
-            action = self.get_player_action()
+            state = (
+                self.game.hand_value(self.game.player_hand),
+                self.game.dealer_hand[0],  # Dealer's visible card
+                self.game.has_usable_ace(self.game.player_hand)
+            )
+            
+            action = self.get_player_action(state)  # Now uses policy-based action in headless mode
+            
             if action == "Hit":
                 self.game.deal_card(self.game.player_hand)
-                if self.game.hand_value(self.game.player_hand) > 21:
-                    running = False  # Player busts, end game
+                if self.game.is_bust(self.game.player_hand):
+                    running = False
             elif action == "Double":
                 self.game.deal_card(self.game.player_hand)
-                running = False  # End player's turn, proceed to dealer
+                running = False
             elif action == "Stand":
-                running = False  # End player's turn, proceed to check winner
+                running = False
             elif action == "Split" and self.game.can_split(self.game.player_hand):
                 split_hands = self.game.split_hand(self.game.player_hand)
                 self.play_split_hands(split_hands)
+                self.display_result()
                 running = False
 
-
-
-            # Display game state if screen is available
+            if not self.screen:
+                logging.info(f"Player Hand: {self.game.player_hand}, Dealer Card: {self.game.dealer_hand[0]}, Action: {action}")
+            
             if self.screen:
                 self.display_game_state()
                 pygame.display.flip()
 
-        # Display result if screen is available
-        if self.screen:
-            self.display_result()
-
-    def get_player_action(self):
+    def get_player_action(self, state):
         """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
         if self.screen:
             # Handle interactive keys if screen is present
@@ -64,13 +62,18 @@ class PlayerBlackjack:
                 return "Split"
         else:
             # In headless mode, return random or policy-based actions
-            return "Hit" if random.random() < 0.5 else "Stand"  # Example: random action for testing
+            return choose_action(state, self.game.player_hand)
     
     def play_split_hands(self, split_hands):
         for hand in split_hands:
             hand_running = True
             while hand_running:
-                action = self.get_player_action()
+                state = (
+                self.game.hand_value(hand),
+                self.game.dealer_hand[0],  # Dealer's visible card
+                self.game.has_usable_ace(hand)
+                )
+                action = self.get_player_action(state)
                 if action == "Hit":
                     self.game.deal_card(hand)
                     if self.game.is_bust(hand):

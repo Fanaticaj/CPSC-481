@@ -3,9 +3,8 @@ import logging
 import random
 from .q_table_manager import save_q_table_json
 from player.player_game1 import PlayerBlackjack  
-from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table
+from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table, min_epsilon, epsilon_decay
 import pygame
-
 logging.basicConfig(level=logging.INFO)
 
 pygame.init()
@@ -15,8 +14,10 @@ player_blackjack = PlayerBlackjack(screen)
 episodes = 100000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
 wins, losses, draws = 0, 0, 0
+epsilon = 1.0
 # Training loop
 for episode in range(episodes):
+    epsilon = max(min_epsilon, epsilon * epsilon_decay)
     # Create a new instance of the blackjack game in non-graphical mode
     player_blackjack = PlayerBlackjack()  
 
@@ -37,9 +38,10 @@ for episode in range(episodes):
 
     done = False  # To track if the game is over
     while not done:
+        print(f"Player Hand: {player_hand} | Dealer Card: {dealer_card}")
         # Choose an action (Hit or Stand) based on epsilon-greedy policy and basic strategy
-        action = choose_action(state)
-
+        action = choose_action(state, player_hand)
+        print(f"Action Chosen: {action}")
         # Execute the chosen action
         if action == "Hit":
             # Player takes a hit
@@ -174,3 +176,4 @@ for episode in range(episodes):
 
 print("Training completed. Q-table has been updated.")
 save_q_table_json(q_table)
+
