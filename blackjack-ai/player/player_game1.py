@@ -4,6 +4,7 @@ import random
 
 class PlayerBlackjack:
     def __init__(self, screen=None):
+        self.show_hand = False
         self.screen = screen
         self.game = Blackjack()
         if self.screen:
@@ -30,8 +31,10 @@ class PlayerBlackjack:
                     running = False  # Player busts, end game
             elif action == "Double":
                 self.game.deal_card(self.game.player_hand)
+                self.show_hand = True
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
+                self.show_hand = True
                 running = False  # End player's turn, proceed to check winner
             elif action == "Split" and self.game.can_split(self.game.player_hand):
                 split_hands = self.game.split_hand(self.game.player_hand)
@@ -105,10 +108,20 @@ class PlayerBlackjack:
             self.screen.blit(player_score, bottom_right_text_position)
             # Move to the next position for the next card
             player_x_position += 110  # Add spacing between cards
-            
-        # DEALER HAND
-        for i in self.game.dealer_hand:
-            dealer_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+        
+         # DEALER HAND
+        if self.show_hand == True:
+            for i in self.game.dealer_hand:
+                dealer_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+                pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
+                # Draw the text inside the rectangle
+                top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
+                bottom_right_text_position = (dealer_x_position + 70, dealer_y_position + 120)
+                self.screen.blit(dealer_score, top_left_text_position)
+                self.screen.blit(dealer_score, bottom_right_text_position)
+                dealer_x_position += 110  # Add spacing between cards
+        else: # Show just the first card, before the player ends their turn
+            dealer_score = pygame.font.Font(None, 30).render(str(dealer_val), True, "black")
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
             # Draw the text inside the rectangle
             top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
@@ -118,8 +131,8 @@ class PlayerBlackjack:
             dealer_x_position += 110  # Add spacing between cards
 
         # pygame.draw.rect(self.screen, 'white', [400, 300, 100, 150], 0, 5)
-        self.screen.blit(player_text, (50, 50))
-        self.screen.blit(dealer_text, (50, 150))
+        self.screen.blit(player_text, (50, 100))
+        self.screen.blit(dealer_text, (50, 400))
 
     def display_result(self):
         """Display the game result on screen."""
