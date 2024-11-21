@@ -15,6 +15,8 @@ class PlayerBlackjack:
 
     def run(self):
         self.game.new_game()
+        print(self.game.player_hand)
+        print(f'Dealer: {self.game.dealer_hand}')
         running = True
         while running:
             if self.screen:
@@ -27,6 +29,7 @@ class PlayerBlackjack:
             action = self.get_player_action()
             if action == "Hit":
                 self.game.deal_card(self.game.player_hand)
+                pygame.time.wait(100) # Without this it keeps on hitting every single frame, instaed of just once
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
             elif action == "Double":
@@ -41,8 +44,7 @@ class PlayerBlackjack:
                 self.play_split_hands(split_hands)
                 running = False
 
-
-
+            self.game.play_dealer_hand() # Deal the dealer's hand at the end
             # Display game state if screen is available
             if self.screen:
                 self.display_game_state()
@@ -120,6 +122,9 @@ class PlayerBlackjack:
                 self.screen.blit(dealer_score, top_left_text_position)
                 self.screen.blit(dealer_score, bottom_right_text_position)
                 dealer_x_position += 110  # Add spacing between cards
+                dealer_val = self.game.hand_value(self.game.dealer_hand)
+                dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
+                self.screen.blit(dealer_text, (50, 400))
         else: # Show just the first card, before the player ends their turn
             dealer_score = pygame.font.Font(None, 30).render(str(dealer_val), True, "black")
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
@@ -129,10 +134,10 @@ class PlayerBlackjack:
             self.screen.blit(dealer_score, top_left_text_position)
             self.screen.blit(dealer_score, bottom_right_text_position)
             dealer_x_position += 110  # Add spacing between cards
+            self.screen.blit(dealer_text, (50, 400))
 
         # pygame.draw.rect(self.screen, 'white', [400, 300, 100, 150], 0, 5)
         self.screen.blit(player_text, (50, 100))
-        self.screen.blit(dealer_text, (50, 400))
 
     def display_result(self):
         """Display the game result on screen."""
