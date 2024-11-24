@@ -11,166 +11,191 @@ logging.basicConfig(level=logging.INFO)
 pygame.init()
 screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
 player_blackjack = PlayerBlackjack(screen)
+
 # Training parameters
 episodes = 100000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
 wins, losses, draws = 0, 0, 0
+
 # Training loop
 for episode in range(episodes):
-    # Create a new instance of the blackjack game in non-graphical mode
+    # Initialize a new game instance
     player_blackjack = PlayerBlackjack()  
+    game = player_blackjack.game
 
-    # Initialize the game state
-    player_blackjack.game.deal_card(player_blackjack.game.player_hand)  # Deal first card to player
-    player_blackjack.game.deal_card(player_blackjack.game.player_hand)  # Deal second card to player
-    player_hand = player_blackjack.game.player_hand  # Retrieve the player's hand after dealing
-    player_blackjack.game.deal_card(player_blackjack.game.dealer_hand)  # Deal first card to dealer
-    dealer_card = player_blackjack.game.dealer_hand[0]  # Retrieve dealer’s visible card
-  # Check if player has a usable Ace
-    player_total = player_blackjack.game.hand_value(player_hand)
-    usable_ace = player_blackjack.game.has_usable_ace(player_hand)  
+    # Deal initial cards to player and dealer
+    game.deal_card(game.player_hand)
+    game.deal_card(game.dealer_hand)
+    game.deal_card(game.player_hand)
+    game.deal_card(game.dealer_hand)
+    logging.info(f"Player's initial hand: {game.player_hand}, Total: {game.hand_value(game.player_hand)}")
+
+    # Initial state
+    player_total = game.hand_value(game.player_hand)
+    dealer_total = game.hand_value(game.dealer_hand)
+
+    if player_total == 21:
+        if dealer_total == 21:
+            reward = 0  # Draw
+            draws += 1
+            logging.info("Both Player and Dealer have Blackjack. It's a Draw!")
+        else:
+            reward = 1  # Player Wins
+            wins += 1
+            logging.info("Player has a Natural Blackjack! Player Wins.")
+        state = (player_total, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
+        initialize_state_action(state)  # Fix: Ensure state is in the Q-table
+        update_q_value(state, "Stand", reward, None)
+        continue  # Move to the next episode
+
+
+    if dealer_total == 21:
+        reward = -1  # Dealer Wins
+        losses += 1
+        logging.info("Dealer has a Natural Blackjack! Dealer Wins.")
+        state = (player_total, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
+        initialize_state_action(state)  # Fix: Ensure state is in the Q-table
+        update_q_value(state, "Stand", reward, None)
+        continue  # Move to the next episode
+    # Initial state
+    player_total = game.hand_value(game.player_hand)
+    dealer_card = game.dealer_hand[0]
+    usable_ace = game.has_usable_ace(game.player_hand)
     state = (player_total, dealer_card, usable_ace)
 
-    # Initialize Q-values for the state if not already present
+    # Initialize Q-values for the state
     initialize_state_action(state)
 
-
-    done = False  # To track if the game is over
+    done = False
     while not done:
-        # Choose an action (Hit or Stand) based on epsilon-greedy policy and basic strategy
-        action = choose_action(state)
+        # Choose an action
+        action = choose_action(state, game.player_hand)
 
-        # Execute the chosen action
+        # Execute action
         if action == "Hit":
-            # Player takes a hit
-            player_blackjack.game.deal_card(player_hand)
-            player_total = player_blackjack.game.hand_value(player_hand)
-            usable_ace = player_blackjack.game.has_usable_ace(player_hand)
+            result = game.hit(game.player_hand)
+            player_total = result["total"]
+            usable_ace = game.has_usable_ace(game.player_hand)
             next_state = (player_total, dealer_card, usable_ace)
 
-            # Check if player busts
-            if player_blackjack.game.is_bust(player_hand):
-                reward = -1
-                losses += 1
-                done = True
-                update_q_value(state, action, reward, None)  # Terminal update
-                continue
-            else:
-                reward = 0
-
-        elif action == "Stand":
-            # Dealer's turn and determine game outcome
-            dealer_total = player_blackjack.game.play_dealer_hand()  # Play dealer's hand to completion
-
-            # Determine the game outcome
-            if dealer_total > 21 or player_total > dealer_total:
-                reward = 1  # Win
-                wins += 1
-            elif player_total < dealer_total:
+            if result["bust"]:
                 reward = -1  # Loss
                 losses += 1
+                done = True
+                update_q_value(state, action, reward, None)
+                break
             else:
-                reward = 0  # Draw
+                reward = 0
+                update_q_value(state, action, reward, next_state)
+            state = next_state
+
+        elif action == "Stand":
+            result = game.stand(game.player_hand)
+            reward = 1 if "Player Wins" in result else -1 if "Dealer Wins" in result else 0
+            if reward == 1:
+                wins += 1
+            elif reward == -1:
+                losses += 1
+            else:
                 draws += 1
-            done = True  # Game ends on Stand
+            done = True
+            update_q_value(state, action, reward, None)
 
-            next_state = None  # Terminal state for the purpose of Q-learning
-        
         elif action == "Double":
-            # Player doubles down: hits once and then stands
-            player_blackjack.game.double_down(player_hand)
-            player_total = player_blackjack.game.hand_value(player_hand)
-            next_state = (player_total, dealer_card, player_blackjack.game.has_usable_ace(player_hand))
+            result = game.double(game.player_hand, 10)  # Assuming bet of 10
+            player_total = result["total"]
+            next_state = (player_total, dealer_card, game.has_usable_ace(game.player_hand))
 
-            # Check if player busts after doubling down
-            if player_blackjack.game.is_bust(player_hand):
-                reward = -1  # Immediate loss
+            if result["bust"]:
+                reward = -1  # Loss
+                losses += 1
+                done = True
             else:
-                # Dealer plays their hand
-                dealer_total = player_blackjack.game.play_dealer_hand()
+                dealer_total = game.play_dealer_hand()
                 if dealer_total > 21 or player_total > dealer_total:
-                    reward = 1  # Player wins
+                    reward = 1
                     wins += 1
                 elif player_total < dealer_total:
-                    reward = -1  # Player loses
+                    reward = -1
                     losses += 1
                 else:
-                    reward = 0  # Draw
+                    reward = 0
                     draws += 1
+                done = True
 
-            done = True  # Player must stand after doubling down
-
-            # Update Q-value for "Double"
             update_q_value(state, action, reward, next_state)
-            continue
+            state = next_state
 
         elif action == "Split":
-            # Player splits their hand into two separate hands
-            logging.info(f"Splitting hand: {player_hand}")
-            hand1, hand2 = player_blackjack.game.split_hand(player_hand)
-            for i, hand in enumerate([hand1, hand2], start=1):
-                logging.info(f"Processing split hand {i}: {hand}")
+            if not game.can_split(game.player_hand):
+                logging.warning("Invalid split action. Skipping turn.")
+                done = True
+                continue
 
-            for hand in [hand1, hand2]:
-                player_total = player_blackjack.game.hand_value(hand)
-                usable_ace = player_blackjack.game.has_usable_ace(hand)
-                split_state = (player_total, dealer_card, usable_ace)
-                if split_state is not None:
-                    initialize_state_action(split_state)
+            result = game.split(game.player_hand, 10)  # Assuming bet of 10
+            if not result["success"]:
+                logging.warning("Split failed.")
+                done = True
+                continue
 
+            hand1, hand2 = result["hand1"], result["hand2"]
+            for split_hand in [hand1, hand2]:
                 split_done = False
                 while not split_done:
-                    if split_state is None:
-                        break
-                    split_action = choose_action(split_state)
+                    split_total = game.hand_value(split_hand)
+                    split_usable_ace = game.has_usable_ace(split_hand)
+                    split_state = (split_total, dealer_card, split_usable_ace)
+                    initialize_state_action(split_state)
 
+                    split_action = choose_action(split_state, split_hand)
                     if split_action == "Hit":
-                        player_blackjack.game.deal_card(hand)
-                        player_total = player_blackjack.game.hand_value(hand)
-                        usable_ace = player_blackjack.game.has_usable_ace(hand)
-                        next_split_state = (player_total, dealer_card, usable_ace)
-
-                        if player_blackjack.game.is_bust(hand):
-                            reward = -1  # Immediate loss
+                        split_result = game.hit(split_hand)
+                        if split_result["bust"]:
+                            reward = -1
                             losses += 1
                             split_done = True
-                            update_q_value(split_state, split_action, reward, None)
-                            continue
                         else:
                             reward = 0
+                        update_q_value(split_state, split_action, reward, None)
+
                     elif split_action == "Stand":
-                        dealer_total = player_blackjack.game.play_dealer_hand()
-                        if dealer_total > 21 or player_total > dealer_total:
-                            reward = 1  # Player wins
+                        dealer_total = game.play_dealer_hand()
+                        if dealer_total > 21 or split_total > dealer_total:
+                            reward = 1
                             wins += 1
-                        elif player_total < dealer_total:
-                            reward = -1  # Player loses
+                        elif split_total < dealer_total:
+                            reward = -1
                             losses += 1
                         else:
-                            reward = 0  # Draw
+                            reward = 0
                             draws += 1
                         split_done = True
-                        next_split_state = None
-                    
-                    update_q_value(split_state, split_action, reward, next_split_state)
-                    split_state = next_split_state
-            break
+                        update_q_value(split_state, split_action, reward, None)
 
-        # Update Q-value for the (state, action) pair
-        update_q_value(state, action, reward, next_state if action != "Split" else None)
-
-        # Move to the next state
-        state = next_state
+                    elif split_action == "Double":
+                        split_result = game.double(split_hand, 10)
+                        if split_result["bust"]:
+                            reward = -1
+                            losses += 1
+                        else:
+                            dealer_total = game.play_dealer_hand()
+                            if dealer_total > 21 or split_total > dealer_total:
+                                reward = 1
+                                wins += 1
+                            elif split_total < dealer_total:
+                                reward = -1
+                                losses += 1
+                            else:
+                                reward = 0
+                                draws += 1
+                        split_done = True
+                        update_q_value(split_state, split_action, reward, None)
 
     if (episode + 1) % print_interval == 0:
         total_games = wins + losses + draws
         print(f"Episode {episode + 1}/{episodes} completed")
-        win_rate = wins / (wins + losses + draws)
-        loss_rate = losses / (wins + losses + draws)
-        draw_rate = draws / (wins + losses + draws)
-        print(f"Episode {episode + 1}/{episodes} completed")
-        print(f"Win Rate: {win_rate:.2%}, Loss Rate: {loss_rate:.2%}, Draw Rate: {draw_rate:.2%}")
+        print(f"Wins: {wins}, Losses: {losses}, Draws: {draws}")
+        print(f"Total Games: {total_games}, Win Rate: {wins / total_games}")
 
-
-print("Training completed. Q-table has been updated.")
+print("Training completed. Saving Q-table...")
 save_q_table_json(q_table)

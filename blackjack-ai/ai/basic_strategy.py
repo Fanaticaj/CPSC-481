@@ -2,10 +2,16 @@ import random
 import logging
 alpha = 0.1 # Learning Rate
 gamma = 0.9 # Discount Factor
-epsilon = 0.1 # Exploration rate
+epsilon = 0.9  # Start with high exploration
+min_epsilon = 0.1  # Minimum exploration rate
+decay_rate = 0.99  # Decay factor
+
+# In each training loop iteration
+epsilon = max(min_epsilon, epsilon * decay_rate)
+
 
 actions = ["Hit", "Stand", "Double", "Split"] 
-
+random_actions = ["Hit", "Stand", "Double"]
 q_table = {}
 
 basic_strategy_q_table = {
@@ -104,35 +110,50 @@ def initialize_state_action(state):
         logging.debug(f"State already initialized: {state}")
 
 # Define function to choose an action based on epsilon-greedy policy and basic strategy
-def choose_action(state):
+def choose_action(state, hand):
+    """
+    Choose an action based on the Q-table or basic strategy.
+
+    Arg:
+        state (tuple): Current state of the game.
+
+    Returns:
+        str: The chosen action.
+    """
+
     player_total, dealer_card, usable_ace = state
 
-    if isinstance(player_total, tuple):
-        strategy_action = basic_strategy_q_table.get((f"{player_total[0]},{player_total[1]}", dealer_card), None)
-        if strategy_action == 'Y':
+    if player_total == 21:
+        logging.info(f"Player hand value is 21. Forcing action to 'Stand'.")
+        return "Stand"
+    
+    if len(hand) == 2 and hand[0][0] == hand[1][0]:  # Check if the hand is a pair
+        pair_key = f"{hand[0][0]},{hand[1][0]}"  # e.g., '2,2', 'A,A'
+        strategy_action = basic_strategy_q_table.get((pair_key, dealer_card), None)
+
+        if strategy_action == 'Y':  # Split recommended
+            logging.info("Basic strategy recommends splitting.")
             return "Split"
+        elif strategy_action == 'N':  # Do not split
+            logging.info("Basic strategy recommends not splitting.")
+            # Continue to evaluate based on the total value
+            pass
 
-    # Convert 'H' and 'S' to actual action strings for Q-learning
-    strategy_action = basic_strategy_q_table.get((player_total, dealer_card), None)
-    if strategy_action:
-        if strategy_action in ['H']:
-            basic_action = "Hit"
-        elif strategy_action in ['S']:
-            basic_action = "Stand"
-        elif strategy_action in ['D']:
-            basic_action = "Double"
-        else:
-            basic_action = "Stand"
 
-        # Follow basic strategy action with 90% probability
-        if random.uniform(0, 1) < 0.9:
-            return basic_action
+    if state in q_table:
+        # Exploitation: Choose the action with the highest Q-value
+        q_values = q_table[state]
+        best_action = max(q_values, key=q_values.get)  # Action with the highest Q-value
+    else:
+        # Default to basic strategy if the state is not in the Q-table
+        strategy_action = basic_strategy_q_table.get((player_total, dealer_card), None)
+        best_action = {"H": "Hit", "S": "Stand", "D": "Double"}.get(strategy_action, "Stand")
 
-    # Use epsilon-greedy policy if no basic strategy recommendation or for exploration
+    # Epsilon-greedy policy
     if random.uniform(0, 1) < epsilon:  # Exploration
-        return random.choice(actions)
+        return random.choice(actions)  # Random action
     else:  # Exploitation
-        return max(q_table[state], key=q_table[state].get)
+        return best_action  # Best action from Q-table or basic strategy
 
 # Define function to update Q-value
 def update_q_value(state, action, reward, next_state):
@@ -150,9 +171,5 @@ def update_q_value(state, action, reward, next_state):
     q_table[state][action] = old_value + alpha * (reward + gamma * next_max - old_value)
 
 
-# Example state representation
-# (player_total, dealer_card, usable_ace)
-current_state = (15, 10, False)  # Example: player has 15, dealer shows 10, no usable Ace
 
-# Initialize state-action pairs for the current state
-initialize_state_action(current_state)
+
