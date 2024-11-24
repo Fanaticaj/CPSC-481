@@ -3,7 +3,7 @@ import logging
 import random
 from .q_table_manager import save_q_table_json
 from player.player_game1 import PlayerBlackjack  
-from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table, min_epsilon, epsilon_decay
+from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table, get_state
 import pygame
 logging.basicConfig(level=logging.INFO)
 
@@ -12,7 +12,7 @@ screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
 player_blackjack = PlayerBlackjack(screen)
 
 # Training parameters
-episodes = 100000  # Number of episodes to train
+episodes = 500000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
 wins, losses, draws = 0, 0, 0
 
@@ -60,7 +60,7 @@ for episode in range(episodes):
     player_total = game.hand_value(game.player_hand)
     dealer_card = game.dealer_hand[0]
     usable_ace = game.has_usable_ace(game.player_hand)
-    state = (player_total, dealer_card, usable_ace)
+    state = get_state(game.player_hand, game.dealer_hand[0], usable_ace)
 
     # Initialize Q-values for the state
     initialize_state_action(state)
@@ -75,7 +75,7 @@ for episode in range(episodes):
             result = game.hit(game.player_hand)
             player_total = result["total"]
             usable_ace = game.has_usable_ace(game.player_hand)
-            next_state = (player_total, dealer_card, usable_ace)
+            next_state = get_state(game.player_hand, game.dealer_hand[0], usable_ace)
 
             if result["bust"]:
                 reward = -1  # Loss
@@ -104,6 +104,11 @@ for episode in range(episodes):
             result = game.double(game.player_hand, 10)  # Assuming bet of 10
             player_total = result["total"]
             next_state = (player_total, dealer_card, game.has_usable_ace(game.player_hand))
+            
+            if player_total in [10, 11]:
+                reward = 0.1  # Reward for doubling with a strong total
+            else:
+                reward = 0  # Neutral reward for other totals
 
             if result["bust"]:
                 reward = -1  # Loss
@@ -127,31 +132,44 @@ for episode in range(episodes):
 
         elif action == "Split":
             if not game.can_split(game.player_hand):
-                logging.warning("Invalid split action. Skipping turn.")
+                logging.warning("Invalid split action. Counting as a loss.")
+                reward = -1
+                losses += 1
+                update_q_value(state, action, reward, None)
                 done = True
                 continue
 
+            # Perform split
             result = game.split(game.player_hand, 10)  # Assuming bet of 10
+
             if not result["success"]:
-                logging.warning("Split failed.")
+                logging.warning("Split action failed.")
+                reward = -1  # Treat failed splits as losses
+                losses += 1
+                update_q_value(state, action, reward, None)
                 done = True
                 continue
 
             hand1, hand2 = result["hand1"], result["hand2"]
+
             for split_hand in [hand1, hand2]:
                 split_done = False
                 while not split_done:
+                    # Get the state of the current split hand
                     split_total = game.hand_value(split_hand)
                     split_usable_ace = game.has_usable_ace(split_hand)
-                    split_state = (split_total, dealer_card, split_usable_ace)
+                    split_state = get_state(split_hand, game.dealer_hand[0], split_usable_ace)
                     initialize_state_action(split_state)
 
+                    # Choose an action for the split hand
                     split_action = choose_action(split_state, split_hand)
+
                     if split_action == "Hit":
                         split_result = game.hit(split_hand)
                         if split_result["bust"]:
                             reward = -1
                             losses += 1
+                            result["win"] = False  # Update split result
                             split_done = True
                         else:
                             reward = 0
@@ -162,12 +180,15 @@ for episode in range(episodes):
                         if dealer_total > 21 or split_total > dealer_total:
                             reward = 1
                             wins += 1
+                            result["win"] = True  # Update split result
                         elif split_total < dealer_total:
                             reward = -1
                             losses += 1
+                            result["win"] = False
                         else:
                             reward = 0
                             draws += 1
+                            result["win"] = None  # Draw
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
 
@@ -176,19 +197,27 @@ for episode in range(episodes):
                         if split_result["bust"]:
                             reward = -1
                             losses += 1
+                            result["win"] = False
                         else:
                             dealer_total = game.play_dealer_hand()
                             if dealer_total > 21 or split_total > dealer_total:
                                 reward = 1
                                 wins += 1
+                                result["win"] = True
                             elif split_total < dealer_total:
                                 reward = -1
                                 losses += 1
+                                result["win"] = False
                             else:
                                 reward = 0
                                 draws += 1
+                                result["win"] = None
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
+
+            # End the main loop for this episode after processing both hands
+            done = True
+
 
     if (episode + 1) % print_interval == 0:
         total_games = wins + losses + draws

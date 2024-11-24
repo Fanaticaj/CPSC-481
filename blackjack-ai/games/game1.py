@@ -258,6 +258,7 @@ class Blackjack:
                 "hand2": None,
                 "bet1": bet,
                 "bet2": None,
+                "win": None,
             }
 
         # Create two separate hands
@@ -286,6 +287,7 @@ class Blackjack:
             "bet2": bet2,
             "hand1_total": hand1_total,
             "hand2_total": hand2_total,
+            "win": None,
     }
 
         
