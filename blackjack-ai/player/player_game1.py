@@ -29,7 +29,7 @@ class PlayerBlackjack:
             action = self.get_player_action()
             if action == "Hit":
                 self.game.deal_card(self.game.player_hand)
-                pygame.time.wait(100) # Without this it keeps on hitting every single frame, instaed of just once
+                pygame.time.wait(100) # Without this it keeps on hitting every single frame, instead of just once
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
             elif action == "Double":
@@ -105,7 +105,7 @@ class PlayerBlackjack:
             pygame.draw.rect(self.screen, 'white', [player_x_position, player_y_position, 100, 150], 0, 5)
             # Draw the text inside the rectangle
             top_left_text_position = (player_x_position + 10, player_y_position + 10)
-            bottom_right_text_position = (player_x_position + 70, player_y_position + 120)
+            bottom_right_text_position = (player_x_position + 75, player_y_position + 125)
             self.screen.blit(player_score, top_left_text_position)
             self.screen.blit(player_score, bottom_right_text_position)
             # Move to the next position for the next card
@@ -118,7 +118,7 @@ class PlayerBlackjack:
                 pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
                 # Draw the text inside the rectangle
                 top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
-                bottom_right_text_position = (dealer_x_position + 70, dealer_y_position + 120)
+                bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
                 self.screen.blit(dealer_score, top_left_text_position)
                 self.screen.blit(dealer_score, bottom_right_text_position)
                 dealer_x_position += 110  # Add spacing between cards
@@ -130,7 +130,7 @@ class PlayerBlackjack:
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
             # Draw the text inside the rectangle
             top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
-            bottom_right_text_position = (dealer_x_position + 70, dealer_y_position + 120)
+            bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
             self.screen.blit(dealer_score, top_left_text_position)
             self.screen.blit(dealer_score, bottom_right_text_position)
             dealer_x_position += 110  # Add spacing between cards
