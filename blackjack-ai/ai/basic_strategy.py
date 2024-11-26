@@ -111,21 +111,29 @@ def initialize_state_action(state):
         logging.info(f"Initialized state in Q-table: {state}")
 
 # Define function to choose an action based on epsilon-greedy policy and basic strategy
-def choose_action(state, hand):
+def choose_action(state, hand, available_actions):
     """
-    Choose an action based on the Q-table or basic strategy.
+    Choose an action based on the Q-table or basic strategy, constrained by available actions.
 
-    Arg:
+    Args:
         state (tuple): Current state of the game.
+        hand (list): The player's current hand.
+        available_actions (list): List of actions allowed in the current state.
+        epsilon (float): Exploration rate for epsilon-greedy policy.
 
     Returns:
         str: The chosen action.
     """
+    # Exploration: With probability epsilon, choose a random action
+    if random.uniform(0, 1) < epsilon:
+        return random.choice(available_actions)
+
+    # Exploitation: Choose the best action based on Q-values or basic strategy
     if isinstance(state[0], str):  # Splittable pair
         pair, dealer_card = state
         if state in q_table:
             q_values = q_table[state]
-            best_action = max(q_values, key=q_values.get)  # Choose the action with the highest Q-value
+            best_action = max(q_values, key=q_values.get)
         else:
             # Default to basic strategy
             strategy_action = basic_strategy_q_table.get((pair, dealer_card), None)
@@ -141,11 +149,8 @@ def choose_action(state, hand):
             strategy_action = basic_strategy_q_table.get((player_total, dealer_card), None)
             best_action = {"H": "Hit", "S": "Stand", "D": "Double"}.get(strategy_action, "Stand")
 
-    # Epsilon-greedy policy
-    if random.uniform(0, 1) < epsilon:  # Exploration
-        return random.choice(actions)  # Random action
-    else:  # Exploitation
-        return best_action
+    # Ensure the chosen action is in the list of available actions
+    return best_action if best_action in available_actions else "Stand"
 
 
 # Define function to update Q-value

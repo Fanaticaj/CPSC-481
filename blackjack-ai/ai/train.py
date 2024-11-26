@@ -12,9 +12,20 @@ screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
 player_blackjack = PlayerBlackjack(screen)
 
 # Training parameters
-episodes = 500000  # Number of episodes to train
-print_interval = 10000  # Print progress every 10,000 episodes
+episodes = 100000  # Number of episodes to train
+print_interval = 1000  # Print progress every 10,000 episodes
 wins, losses, draws = 0, 0, 0
+
+# Action-specific statistics
+action_stats = {
+    "Hit": {"wins": 0, "losses": 0, "draws": 0},
+    "Stand": {"wins": 0, "losses": 0, "draws": 0},
+    "Double": {"wins": 0, "losses": 0, "draws": 0},
+    "Split": {"wins": 0, "losses": 0, "draws": 0},
+}
+
+# Dealer and player bust rates
+dealer_busts, player_busts = 0, 0
 
 # Training loop
 for episode in range(episodes):
@@ -37,10 +48,12 @@ for episode in range(episodes):
         if dealer_total == 21:
             reward = 0  # Draw
             draws += 1
+            action_stats["Stand"]["draws"] += 1
             logging.info("Both Player and Dealer have Blackjack. It's a Draw!")
         else:
             reward = 1  # Player Wins
             wins += 1
+            action_stats["Stand"]["wins"] += 1
             logging.info("Player has a Natural Blackjack! Player Wins.")
         state = (player_total, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
         initialize_state_action(state)  # Fix: Ensure state is in the Q-table
@@ -51,6 +64,7 @@ for episode in range(episodes):
     if dealer_total == 21:
         reward = -1  # Dealer Wins
         losses += 1
+        action_stats["Stand"]["losses"] += 1
         logging.info("Dealer has a Natural Blackjack! Dealer Wins.")
         state = (player_total, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
         initialize_state_action(state)  # Fix: Ensure state is in the Q-table
@@ -61,14 +75,29 @@ for episode in range(episodes):
     dealer_card = game.dealer_hand[0]
     usable_ace = game.has_usable_ace(game.player_hand)
     state = get_state(game.player_hand, game.dealer_hand[0], usable_ace)
-
+    
     # Initialize Q-values for the state
     initialize_state_action(state)
 
     done = False
     while not done:
+        
+        player_total = game.hand_value(game.player_hand)
+        dealer_card = game.dealer_hand[0]
+        usable_ace = game.has_usable_ace(game.player_hand)
+        state = get_state(game.player_hand, dealer_card, usable_ace)
+
+        # Default available actions
+        available_actions = ["Hit", "Stand"]
+
+        # Add "Double" and "Split" if conditions are met
+        if len(game.player_hand) == 2:  # Only allow these actions with exactly two cards
+            available_actions.append("Double")
+            if game.can_split(game.player_hand):
+                available_actions.append("Split")
+
         # Choose an action
-        action = choose_action(state, game.player_hand)
+        action = choose_action(state, game.player_hand, available_actions)
 
         # Execute action
         if action == "Hit":
@@ -78,8 +107,10 @@ for episode in range(episodes):
             next_state = get_state(game.player_hand, game.dealer_hand[0], usable_ace)
 
             if result["bust"]:
+                player_busts += 1
                 reward = -1  # Loss
                 losses += 1
+                action_stats["Hit"]["losses"] += 1
                 done = True
                 update_q_value(state, action, reward, None)
                 break
@@ -93,10 +124,13 @@ for episode in range(episodes):
             reward = 1 if "Player Wins" in result else -1 if "Dealer Wins" in result else 0
             if reward == 1:
                 wins += 1
+                action_stats["Stand"]["wins"] += 1
             elif reward == -1:
                 losses += 1
+                action_stats["Stand"]["losses"] += 1
             else:
                 draws += 1
+                action_stats["Stand"]["draws"] += 1
             done = True
             update_q_value(state, action, reward, None)
 
@@ -113,18 +147,28 @@ for episode in range(episodes):
             if result["bust"]:
                 reward = -1  # Loss
                 losses += 1
+                action_stats["Double"]["losses"] += 1
+                player_busts += 1
                 done = True
             else:
                 dealer_total = game.play_dealer_hand()
-                if dealer_total > 21 or player_total > dealer_total:
+                if dealer_total > 21:
+                    dealer_busts += 1
                     reward = 1
                     wins += 1
+                    action_stats["Double"]["wins"] += 1
+                elif player_total > dealer_total:
+                    reward = 1
+                    wins += 1
+                    action_stats["Double"]["wins"] += 1
                 elif player_total < dealer_total:
                     reward = -1
                     losses += 1
+                    action_stats["Double"]["losses"] += 1
                 else:
                     reward = 0
                     draws += 1
+                    action_stats["Double"]["draws"] += 1
                 done = True
 
             update_q_value(state, action, reward, next_state)
@@ -161,14 +205,23 @@ for episode in range(episodes):
                     split_state = get_state(split_hand, game.dealer_hand[0], split_usable_ace)
                     initialize_state_action(split_state)
 
-                    # Choose an action for the split hand
-                    split_action = choose_action(split_state, split_hand)
+                    # Determine available actions for the split hand
+                    split_available_actions = ["Hit", "Stand"]
+                    if len(split_hand) == 2:
+                        split_available_actions.append("Double")
+                        if game.can_split(split_hand):
+                            split_available_actions.append("Split")
 
+                    # Choose an action for the split hand
+                    split_action = choose_action(split_state, split_hand, split_available_actions)
+
+                    # Execute the chosen action
                     if split_action == "Hit":
                         split_result = game.hit(split_hand)
                         if split_result["bust"]:
                             reward = -1
                             losses += 1
+                            action_stats["Split"]["losses"] += 1
                             result["win"] = False  # Update split result
                             split_done = True
                         else:
@@ -177,17 +230,25 @@ for episode in range(episodes):
 
                     elif split_action == "Stand":
                         dealer_total = game.play_dealer_hand()
-                        if dealer_total > 21 or split_total > dealer_total:
+                        if dealer_total > 21:
+                            reward = 1
+                            wins += 1
+                            action_stats["Split"]["wins"] += 1
+                            result["win"] = True  # Update split result
+                        elif split_total > dealer_total:
                             reward = 1
                             wins += 1
                             result["win"] = True  # Update split result
+                            action_stats["Split"]["wins"] += 1
                         elif split_total < dealer_total:
                             reward = -1
                             losses += 1
+                            action_stats["Split"]["losses"] += 1
                             result["win"] = False
                         else:
                             reward = 0
                             draws += 1
+                            action_stats["Split"]["draws"] += 1
                             result["win"] = None  # Draw
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
@@ -197,34 +258,60 @@ for episode in range(episodes):
                         if split_result["bust"]:
                             reward = -1
                             losses += 1
+                            action_stats["Double"]["losses"] += 1
                             result["win"] = False
                         else:
                             dealer_total = game.play_dealer_hand()
-                            if dealer_total > 21 or split_total > dealer_total:
+                            if dealer_total > 21:
                                 reward = 1
                                 wins += 1
+                                action_stats["Double"]["wins"] += 1
+                                result["win"] = True
+                            elif split_total > dealer_total:
+                                reward = 1
+                                wins += 1
+                                action_stats["Double"]["wins"] += 1
                                 result["win"] = True
                             elif split_total < dealer_total:
                                 reward = -1
                                 losses += 1
+                                action_stats["Double"]["losses"] += 1
                                 result["win"] = False
                             else:
                                 reward = 0
                                 draws += 1
+                                action_stats["Double"]["draws"] += 1
                                 result["win"] = None
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
 
-            # End the main loop for this episode after processing both hands
-            done = True
+    # End the main loop for this episode after processing both hands
+    done = True
 
 
-    if (episode + 1) % print_interval == 0:
-        total_games = wins + losses + draws
-        print(f"Episode {episode + 1}/{episodes} completed")
-        print(f"Wins: {wins}, Losses: {losses}, Draws: {draws}")
-        print(f"Total Games: {total_games}, Win Rate: {wins / total_games}")
+    
+# Final summary
+total_games = wins + losses + draws
+print("Training completed. Final Results:")
+print("-----------------------------------")
+print(f"Total Games Played: {total_games}")
+print(f"Wins: {wins}, Losses: {losses}, Draws: {draws}")
+print(f"Win Rate: {wins / total_games:.2%}")
+print("\nAction Statistics:")
+for action, stats in action_stats.items():
+    print(f"  - {action}: Wins: {stats['wins']}, Losses: {stats['losses']}, Draws: {stats['draws']}")
 
-print("Training completed. Saving Q-table...")
+# Print dealer and player bust rates
+print(f"\nDealer Bust Rate: {dealer_busts / total_games:.2%}")
+print(f"Player Bust Rate: {player_busts / total_games:.2%}")
+
+# Add Action Success Rates
+print("\nAction Success Rates:")
+for action, stats in action_stats.items():
+    total = stats["wins"] + stats["losses"] + stats["draws"]
+    success_rate = stats["wins"] / total if total > 0 else 0
+    print(f"  - {action}: Success Rate: {success_rate:.2%}")
+
+# Save Q-table to file
 save_q_table_json(q_table)
 

@@ -50,17 +50,20 @@ class Blackjack:
         dealer_val = self.hand_value(self.dealer_hand)
 
         if player_val > 21:
-            return "Player Busts! Dealer Wins."
+            result = "Player Busts! Dealer Wins."
         elif player_val == 21:
-            return "Player Wins! Blackjack!"
+            result = "Player Wins! Blackjack!"
         elif dealer_val > 21:
-            return "Dealer Busts! Player Wins."
+            result = "Dealer Busts! Player Wins."
         elif player_val == dealer_val:
-            return "It's a Tie!"
+            result = "It's a Tie!"
         elif player_val > dealer_val:
-            return "Player Wins!"
+            result = "Player Wins!"
         else:
-            return "Dealer Wins!"
+            result = "Dealer Wins!"
+        
+        logging.info(f"Final Results -> Player: {player_val}, Dealer: {dealer_val}, Outcome: {result}")
+        return result
     
     def has_usable_ace(self, hand):
         """Check if the hand has a usable Ace (counts as 11 without busting)."""
@@ -100,12 +103,20 @@ class Blackjack:
         - Dealer stands on soft 17 or higher.
         """
         logging.info(f"Dealer's initial hand: {self.dealer_hand}, Total: {self.hand_value(self.dealer_hand)}")
+    
         while self.hand_value(self.dealer_hand) < 17:
             self.deal_card(self.dealer_hand)
             logging.info(f"Dealer hits and receives: {self.dealer_hand[-1]}")
             logging.info(f"Dealer's updated hand: {self.dealer_hand}, Total: {self.hand_value(self.dealer_hand)}")
+        
+            # Check if dealer busts
+            if self.hand_value(self.dealer_hand) > 21:
+                logging.warning(f"Dealer busts with hand: {self.dealer_hand}, Total: {self.hand_value(self.dealer_hand)}")
+                return self.hand_value(self.dealer_hand)  # Return bust total
+
         total = self.hand_value(self.dealer_hand)
-        logging.info(f"Dealer stands with hand: {self.dealer_hand}, Total: {total}")
+        if total <= 21:
+            logging.info(f"Dealer stands with hand: {self.dealer_hand}, Total: {total}")
         return total
     
     def can_split(self, hand):
@@ -163,27 +174,19 @@ class Blackjack:
     def hit(self, hand):
         """
         Player chooses to hit. A card is dealt to their hand.
-    
-        Args:
-        hand (list): The player's current hand.
-
-        Returns:
-        dict: The updated hand value, the hand itself, and whether the player has busted.
         """
         logging.info("Player chooses to hit.")
-    
-    # Deal a card to the player's hand
         self.deal_card(hand)
         hand_total = self.hand_value(hand)
 
-    # Check if the player busts
         if self.is_bust(hand):
-            logging.info(f"Player busts with hand: {hand}, Total: {hand_total}")
+            result = "Player Busts! Dealer Wins."
+            logging.info(f"Final Results -> Player: {hand_total}, Dealer: {self.hand_value(self.dealer_hand)}, Outcome: {result}")
             return {
                 "hand": hand,
                 "total": hand_total,
                 "bust": True,
-                "result": "Player Busts! Dealer Wins."
+                "result": result
             }
         else:
             logging.info(f"Player hits successfully. Current hand: {hand}, Total: {hand_total}")
