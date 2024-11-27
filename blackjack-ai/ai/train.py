@@ -125,6 +125,8 @@ for episode in range(episodes):
                     hand_improvement = player_total - state[0]
 
                 reward = 0.1 * hand_improvement  # Reward for improving hand without busting
+                update_q_value(state, action, reward, next_state)
+                state = next_state
             else:
                 player_busts += 1
                 reward = -1  # Loss due to bust
