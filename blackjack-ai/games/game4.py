@@ -64,3 +64,9 @@ class EBlackjack:
         #self.deal_card(self.dealer_hand)
         self.deal_card(self.player_hand)
         self.deal_card(self.dealer_hand)
+
+    def play_dealer_hand(self):
+        """Play the dealer's hand according to standard Spanish Blackjack rules."""
+        while self.hand_value(self.dealer_hand) < 17:
+            self.deal_card(self.dealer_hand)
+        return self.hand_value(self.dealer_hand)

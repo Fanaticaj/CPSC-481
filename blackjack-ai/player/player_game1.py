@@ -20,6 +20,12 @@ class PlayerBlackjack:
         print(f'Dealer: {self.game.dealer_hand}')
         running = True
         while running:
+            if self.screen:
+                # Only handle Pygame events if a screen is present
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+
             state = (
                 self.game.hand_value(self.game.player_hand),
                 self.game.dealer_hand[0],  # Dealer's visible card
@@ -51,6 +57,9 @@ class PlayerBlackjack:
             if self.screen:
                 self.display_game_state()
                 pygame.display.flip()
+        # Display result if screen is available
+        if self.screen:
+            self.display_result()
 
     def get_player_action(self, state):
         """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
