@@ -103,20 +103,30 @@ class Blackjack:
         - Dealer stands on soft 17 or higher.
         """
         logging.info(f"Dealer's initial hand: {self.dealer_hand}, Total: {self.hand_value(self.dealer_hand)}")
-    
-        while self.hand_value(self.dealer_hand) < 17:
+
+        while self.hand_value(self.dealer_hand) < 17 or (
+            self.hand_value(self.dealer_hand) == 17 and self.has_soft_ace(self.dealer_hand)
+        ):
+            # Dealer hits
             self.deal_card(self.dealer_hand)
             logging.info(f"Dealer hits and receives: {self.dealer_hand[-1]}")
             logging.info(f"Dealer's updated hand: {self.dealer_hand}, Total: {self.hand_value(self.dealer_hand)}")
+
+            if self.hand_value(self.dealer_hand) >= 17:
+                break
         
             # Check if dealer busts
             if self.hand_value(self.dealer_hand) > 21:
                 logging.warning(f"Dealer busts with hand: {self.dealer_hand}, Total: {self.hand_value(self.dealer_hand)}")
                 return self.hand_value(self.dealer_hand)  # Return bust total
 
+        # Dealer stands
         total = self.hand_value(self.dealer_hand)
-        if total <= 21:
+        if self.hand_value(self.dealer_hand) == 17 and self.has_soft_ace(self.dealer_hand):
+            logging.info(f"Dealer stands on soft 17 with hand: {self.dealer_hand}, Total: {total}")
+        else:
             logging.info(f"Dealer stands with hand: {self.dealer_hand}, Total: {total}")
+
         return total
     
     def can_split(self, hand):
@@ -150,6 +160,14 @@ class Blackjack:
         and has not taken any other action (like hitting).
         """
         return len(hand) == 2
+    
+    def has_soft_ace(self, hand):
+        """
+        Returns True if the hand contains a soft Ace (Ace valued at 11).
+        """
+        total = sum(10 if card[0] in "JQK" else 11 if card[0] == "A" else int(card[0]) for card in hand)
+        return total <= 21 and any(card[0] == "A" for card in hand)
+
     
     def stand(self, hand):
         """Stand with the current hand."""

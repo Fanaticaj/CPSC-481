@@ -12,8 +12,8 @@ screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
 player_blackjack = PlayerBlackjack(screen)
 
 # Training parameters
-episodes = 100000  # Number of episodes to train
-print_interval = 1000  # Print progress every 10,000 episodes
+episodes = 1000000  # Number of episodes to train
+print_interval = 10000  # Print progress every 10,000 episodes
 wins, losses, draws = 0, 0, 0
 
 # Action-specific statistics
@@ -101,23 +101,39 @@ for episode in range(episodes):
 
         # Execute action
         if action == "Hit":
+
             result = game.hit(game.player_hand)
             player_total = result["total"]
             usable_ace = game.has_usable_ace(game.player_hand)
             next_state = get_state(game.player_hand, game.dealer_hand[0], usable_ace)
 
-            if result["bust"]:
+
+            if not result["bust"]:
+            # Handle pairs: Convert pair state to numeric total temporarily for hand improvement
+                if isinstance(state[0], str):  # State is a pair (e.g., '8,8')
+                    pair_values = state[0].split(",")  # Split pair string (e.g., '8,8' -> ['8', '8'])
+                    numeric_total = 0
+                    for val in pair_values:
+                        if val == 'A':
+                            numeric_total += 11  # Default to 11 for Ace
+                        elif val in ['J', 'Q', 'K']:
+                            numeric_total += 10  # Face cards are worth 10
+                        else:
+                            numeric_total += int(val)  # Numeric cards
+                    hand_improvement = player_total - numeric_total
+                else:
+                    hand_improvement = player_total - state[0]
+
+                reward = 0.1 * hand_improvement  # Reward for improving hand without busting
+            else:
                 player_busts += 1
-                reward = -1  # Loss
+                reward = -1  # Loss due to bust
                 losses += 1
                 action_stats["Hit"]["losses"] += 1
                 done = True
-                update_q_value(state, action, reward, None)
+                update_q_value(state, action, reward, None)  # No next state because the episode ends
+                logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: None")
                 break
-            else:
-                reward = 0
-                update_q_value(state, action, reward, next_state)
-            state = next_state
 
         elif action == "Stand":
             result = game.stand(game.player_hand)
@@ -133,6 +149,7 @@ for episode in range(episodes):
                 action_stats["Stand"]["draws"] += 1
             done = True
             update_q_value(state, action, reward, None)
+            logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: None")
 
         elif action == "Double":
             result = game.double(game.player_hand, 10)  # Assuming bet of 10
@@ -172,6 +189,7 @@ for episode in range(episodes):
                 done = True
 
             update_q_value(state, action, reward, next_state)
+            logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: {next_state}")
             state = next_state
 
         elif action == "Split":
@@ -180,6 +198,7 @@ for episode in range(episodes):
                 reward = -1
                 losses += 1
                 update_q_value(state, action, reward, None)
+                logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: None")
                 done = True
                 continue
 
@@ -196,7 +215,17 @@ for episode in range(episodes):
 
             hand1, hand2 = result["hand1"], result["hand2"]
 
-            for split_hand in [hand1, hand2]:
+            initial_state = state
+
+            hand1_reward = 0
+            hand2_reward = 0
+
+            hand1_state = get_state(hand1, game.dealer_hand[0], game.has_usable_ace(hand1))
+            hand2_state = get_state(hand2, game.dealer_hand[0], game.has_usable_ace(hand2))
+            logging.info(f"Initial State for Hand 1: {hand1_state}")
+            logging.info(f"Initial State for Hand 2: {hand2_state}")
+
+            for split_hand, reward_var in [(hand1, "hand1_reward"), (hand2, "hand2_reward")]:
                 split_done = False
                 while not split_done:
                     # Get the state of the current split hand
@@ -227,6 +256,7 @@ for episode in range(episodes):
                         else:
                             reward = 0
                         update_q_value(split_state, split_action, reward, None)
+                        logging.info(f"State: {split_state}, Action: {split_action}, Reward: {reward}, Next State: None")
 
                     elif split_action == "Stand":
                         dealer_total = game.play_dealer_hand()
@@ -252,6 +282,7 @@ for episode in range(episodes):
                             result["win"] = None  # Draw
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
+                        logging.info(f"State: {split_state}, Action: {split_action}, Reward: {reward}, Next State: None")
 
                     elif split_action == "Double":
                         split_result = game.double(split_hand, 10)
@@ -284,6 +315,21 @@ for episode in range(episodes):
                                 result["win"] = None
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
+                        logging.info(f"State: {split_state}, Action: {split_action}, Reward: {reward}, Next State: None")
+                if split_hand == hand1:
+                    hand1_reward = reward
+                elif split_hand == hand2:
+                    hand2_reward = reward
+                
+            # Calculate total and average rewards for the split
+            total_reward = hand1_reward + hand2_reward
+            average_reward = total_reward / 2
+
+            # Update Q-value for the initial state
+            update_q_value(initial_state, "Split", average_reward, None)
+            logging.info(f"Split completed. Initial State: {initial_state}, Average Reward: {average_reward}")
+            done = True
+
 
     # End the main loop for this episode after processing both hands
     done = True

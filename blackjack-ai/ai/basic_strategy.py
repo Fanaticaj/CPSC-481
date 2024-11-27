@@ -3,7 +3,7 @@ import logging
 
 alpha = 0.05 # Learning Rate
 gamma = 0.95 # Discount Factor
-epsilon = 0.9  # Start with high exploration
+epsilon = 0.5  # Start with high exploration
 min_epsilon = 0.01  # Minimum exploration rate
 decay_rate = 0.995  # Decay factor
 
@@ -155,6 +155,10 @@ def choose_action(state, hand, available_actions):
 
 # Define function to update Q-value
 def update_q_value(state, action, reward, next_state):
+    # Initialize the state in the Q-table if it doesn't exist
+    if state not in q_table:
+        initialize_state_action(state)
+    
     if next_state is None:
         next_max = 0
     else:
@@ -164,6 +168,7 @@ def update_q_value(state, action, reward, next_state):
     
     old_value = q_table[state][action]
     q_table[state][action] = old_value + alpha * (reward + gamma * next_max - old_value)
+
 
 def get_state(hand, dealer_card, usable_ace):
     """
@@ -181,8 +186,26 @@ def get_state(hand, dealer_card, usable_ace):
         pair = f"{hand[0][0]},{hand[1][0]}"  # Represent as pair (e.g., '8,8')
         return (pair, dealer_card[0])  # Pair state with dealer card rank
     else:
-        player_total = sum([card[1] if isinstance(card[1], int) else 10 for card in hand])
-        return (player_total, dealer_card[0], usable_ace)
+        # Correct hand value calculation
+        total = 0
+        aces = 0
+        for card in hand:
+            rank = card[0]
+            if rank.isdigit():  # Numeric cards
+                total += int(rank)
+            elif rank in ['J', 'Q', 'K']:  # Face cards
+                total += 10
+            elif rank == 'A':  # Ace
+                total += 11
+                aces += 1
+
+        # Adjust for aces if the total exceeds 21
+        while total > 21 and aces > 0:
+            total -= 10
+            aces -= 1
+
+        usable_ace = aces > 0
+        return (total, dealer_card[0], usable_ace)
 
 
 
