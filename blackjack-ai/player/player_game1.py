@@ -23,7 +23,6 @@ class PlayerBlackjack:
         print(self.game.player_hand)
         print(f'Dealer: {self.game.dealer_hand}')
         print(f'Observer Mode =', self.observer_mode)
-        print(f'Observer Mode =', self.observer_mode)
         running = True
         print("displaying game")
         self.display_game_state()
@@ -52,7 +51,6 @@ class PlayerBlackjack:
 
             if action == "Hit":
                 print("hit!")
-                print("hit!")
                 self.game.deal_card(self.game.player_hand)
                 pygame.time.wait(100) # Without this it keeps on hitting every single frame, instead of just once
                 if self.game.hand_value(self.game.player_hand) > 21:
@@ -65,12 +63,10 @@ class PlayerBlackjack:
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
                 print("Stand!")
-                print("Stand!")
                 self.show_hand = True
                 self.game.play_dealer_hand() # Deal the dealer's hand at the end
                 running = False  # End player's turn, proceed to check winner
             elif action == "Split" and self.game.can_split(self.game.player_hand):
-                print("Split!")
                 print("Split!")
                 split_hands = self.game.split_hand(self.game.player_hand)
                 self.play_split_hands(split_hands)
@@ -185,7 +181,6 @@ class PlayerBlackjack:
     def display_result(self):
         """Display the game result on screen."""
         result = self.game.check_winner()
-        print(result)
         print(result)
         result_text = self.font.render(result, True, (255, 255, 255))
         self.screen.blit(result_text, (50, 300))
