@@ -4,7 +4,8 @@ from games.game1 import Blackjack
 import random
 from ai.basic_strategy import choose_action
 class PlayerBlackjack:
-    def __init__(self, screen=None):
+    def __init__(self, observer_mode, screen=None):
+        self.observer_mode = observer_mode
         self.show_hand = False
         self.screen = screen
         self.game = Blackjack()
@@ -18,6 +19,7 @@ class PlayerBlackjack:
         self.game.new_game()
         print(self.game.player_hand)
         print(f'Dealer: {self.game.dealer_hand}')
+        print(f'Observer Mode =', self.observer_mode)
         running = True
         while running:
             if self.screen:
@@ -35,18 +37,22 @@ class PlayerBlackjack:
             action = self.get_player_action(state)  # Now uses policy-based action in headless mode
             
             if action == "Hit":
+                print("hit!")
                 self.game.deal_card(self.game.player_hand)
                 pygame.time.wait(100) # Without this it keeps on hitting every single frame, instead of just once
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
             elif action == "Double":
+                print("double!")
                 self.game.deal_card(self.game.player_hand)
                 self.show_hand = True
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
+                print("Stand!")
                 self.show_hand = True
                 running = False  # End player's turn, proceed to check winner
             elif action == "Split" and self.game.can_split(self.game.player_hand):
+                print("Split!")
                 split_hands = self.game.split_hand(self.game.player_hand)
                 self.play_split_hands(split_hands)
                 self.display_result()
@@ -76,7 +82,7 @@ class PlayerBlackjack:
                 return "Split"
         else:
             # In headless mode, return random or policy-based actions
-            return choose_action(state, self.game.player_hand)
+            return choose_action(state, self.game.player_hand, ["Hit", "Stand", "Double", "Split"] )
     
     def play_split_hands(self, split_hands):
         for hand in split_hands:
@@ -154,6 +160,7 @@ class PlayerBlackjack:
     def display_result(self):
         """Display the game result on screen."""
         result = self.game.check_winner()
+        print(result)
         result_text = self.font.render(result, True, (255, 255, 255))
         self.screen.blit(result_text, (50, 300))
         pygame.display.flip()

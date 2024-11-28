@@ -102,11 +102,11 @@ def main_menu():
                 if black_Jack1.checkForInput(MENU_MOUSE_POS):
                     if observe_mode() :
                         #print("OBSERVATION MODE")
-                        player_blackjack = PlayerBlackjack(SCREEN)
+                        player_blackjack = PlayerBlackjack(True, SCREEN)
                         player_blackjack.run()
                     else :
                         #print("PLAY MODE")
-                        player_blackjack = PlayerBlackjack(SCREEN)
+                        player_blackjack = PlayerBlackjack(False, SCREEN)
                         player_blackjack.run() 
                 if black_Jack2.checkForInput(MENU_MOUSE_POS):
                     if observe_mode() :
