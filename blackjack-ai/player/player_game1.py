@@ -24,8 +24,7 @@ class PlayerBlackjack:
         print(f'Dealer: {self.game.dealer_hand}')
         print(f'Observer Mode =', self.observer_mode)
         running = True
-        print("displaying game")
-        self.display_game_state()
+        if self.screen: self.display_game_state()
         while running:
             action = None
             state = (
@@ -43,7 +42,6 @@ class PlayerBlackjack:
                         x, y = event.pos
                         action = self.get_button_action(x, y, state)  # Now uses policy-based action in headless mode
                     elif event.type == pygame.KEYDOWN and not self.observer_mode:
-                        print(event.key)
                         action = self.get_key_action(event, state)
 
             if self.observer_mode:
@@ -52,19 +50,16 @@ class PlayerBlackjack:
             if action == "Hit":
                 print("hit!")
                 self.game.deal_card(self.game.player_hand)
-                pygame.time.wait(100) # Without this it keeps on hitting every single frame, instead of just once
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
             elif action == "Double":
                 print("double!")
                 self.game.deal_card(self.game.player_hand)
                 self.show_hand = True
-                self.game.play_dealer_hand() # Deal the dealer's hand at the end
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
                 print("Stand!")
                 self.show_hand = True
-                self.game.play_dealer_hand() # Deal the dealer's hand at the end
                 running = False  # End player's turn, proceed to check winner
             elif action == "Split" and self.game.can_split(self.game.player_hand):
                 print("Split!")
@@ -73,20 +68,20 @@ class PlayerBlackjack:
                 self.display_result()
                 running = False
 
+            if self.show_hand: self.game.play_dealer_hand() # Deal the dealer's hand at the end
             
             # Display game state if screen is available
             if self.screen:
                 self.display_game_state()
                 pygame.display.flip()
-        if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
+        
         # Display result if screen is available
         if self.screen:
-            if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Wait for a predetermined time if observer mode is active.
+            if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
             self.display_result()
 
     def get_key_action(self, event, state):
         """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
-        print(not self.observer_mode, event.type == pygame.KEYDOWN)
         if self.screen and not self.observer_mode and event.type == pygame.KEYDOWN:
             # Handle interactive keys if screen is present
             if event.key == pygame.K_h:
@@ -103,7 +98,7 @@ class PlayerBlackjack:
         return choose_action(state, self.game.player_hand, ["Hit", "Stand", "Double", "Split"] )
     
     def get_button_action(self, x, y, state):
-        print("hi")
+        print("Clicked")
     
     def play_split_hands(self, split_hands):
         for hand in split_hands:
