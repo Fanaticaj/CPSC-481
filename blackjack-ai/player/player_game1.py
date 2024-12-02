@@ -111,12 +111,11 @@ class PlayerBlackjack:
                 running = False
 
             self.game.play_dealer_hand() # Deal the dealer's hand at the end
-            # Display game state if screen is available
-            if self.screen:
-                self.display_game_state()
-                pygame.display.flip()
+                
         # Display result if screen is available
         if self.screen:
+            self.display_game_state()
+            pygame.display.flip()
             self.display_result()
 
     def get_player_action(self, state):
