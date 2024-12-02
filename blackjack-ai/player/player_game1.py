@@ -1,22 +1,71 @@
 import pygame
 import logging
 from games.game1 import Blackjack
+from ai.q_table_manager import load_q_table_json
 import random
 from ai.basic_strategy import choose_action
 class PlayerBlackjack:
-    def __init__(self, observer_mode, screen=None):
-        self.observer_mode = observer_mode
-    def __init__(self, observer_mode, screen=None):
+    def __init__(self, observer_mode, screen=None, q_table=None):
         self.observer_mode = observer_mode
         self.show_hand = False
         self.ai_wait_interval = 1000
         self.screen = screen
         self.game = Blackjack()
+
+        # Load the Q-table for regular blackjack
+        self.q_table = q_table if q_table else {}
+            
+
         if self.screen:
             pygame.font.init()  # Initialize fonts if using graphics
             self.font = pygame.font.Font(None, 36)
         else:
             self.font = None  # No font needed in headless mode
+    
+    def is_pair(self, hand):
+        """Check if the player's hand contains a pair."""
+        if len(hand) != 2:  # A pair is only possible with exactly two cards
+            return False
+        return hand[0][0] == hand[1][0]  # Compare the ranks of the two cards
+
+    
+    def get_ai_action(self, state):
+        """Retrieve the best action from the Q-table for the current state."""
+        if state in self.q_table:
+            action_values = self.q_table[state]
+        
+            # Exclude "Double" if the player has more than two cards
+            if len(self.game.player_hand) > 2 and "Double" in action_values:
+                action_values = {k: v for k, v in action_values.items() if k != "Double"}
+        
+            # Exclude "Split" if the player's hand is not a pair
+            if not self.is_pair(self.game.player_hand) and "Split" in action_values:
+                action_values = {k: v for k, v in action_values.items() if k != "Split"}
+        
+            # Get the action with the highest value
+            best_action = max(action_values, key=action_values.get)
+        
+            # Log state details and AI recommendation only once per state
+            if not hasattr(self, "logged_states"):
+                self.logged_states = set()
+            if state not in self.logged_states:
+                print(f"Current State: {state}")
+                print(f"Action Values: {action_values}")
+                print(f"AI says to {best_action}")
+                self.logged_states.add(state)
+        
+            return best_action
+        else:
+            # Log missing state details only once
+            if not hasattr(self, "logged_states"):
+                self.logged_states = set()
+            if state not in self.logged_states:
+                print(f"State not found in Q-table. Defaulting to 'Stand'. Current State: {state}")
+                self.logged_states.add(state)
+            return "Stand"  # Default action if the state is not in the Q-table
+
+
+
 
     def run(self):
         self.game.new_game()
@@ -29,10 +78,11 @@ class PlayerBlackjack:
             action = None
             state = (
                 self.game.hand_value(self.game.player_hand),
-                self.game.dealer_hand[0],  # Dealer's visible card
+                str(self.game.dealer_hand[0][0]),  # Dealer's visible card
                 self.game.has_usable_ace(self.game.player_hand)
             )
 
+            ai_action = self.get_ai_action(state)
             if self.screen:
                 # Only handle Pygame events if a screen is present
                 for event in pygame.event.get():
@@ -43,9 +93,12 @@ class PlayerBlackjack:
                         action = self.get_button_action(x, y, state)  # Now uses policy-based action in headless mode
                     elif event.type == pygame.KEYDOWN and not self.observer_mode:
                         action = self.get_key_action(event, state)
+                # Display the current game state and AI suggestion
+                self.display_game_state(ai_action)  # Pass AI suggestion to the display method
+                pygame.display.flip()
 
             if self.observer_mode:
-                action = self.get_ai_action(state)
+                action = ai_action
 
             if action == "Hit":
                 print("hit!")
@@ -120,7 +173,7 @@ class PlayerBlackjack:
                     self.game.deal_card(hand)
                     hand_running = False
 
-    def display_game_state(self):
+    def display_game_state(self, ai_action=None):
         """Display the player's and dealer's hand values on screen."""
         player_x_position = 400
         player_y_position = 100
@@ -129,11 +182,29 @@ class PlayerBlackjack:
         player_val = self.game.hand_value(self.game.player_hand)
         dealer_val = self.game.hand_value(self.game.dealer_hand[:1])  # Dealer shows only one card
 
+        # Fill background
+        self.screen.fill((0, 100, 0))  # Green background
+
+        # Render Player and Dealer Hand text
         player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
         dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
+        self.screen.blit(player_text, (50, 100))
+        self.screen.blit(dealer_text, (50, 400))
 
-        self.screen.fill((0, 100, 0))  # Green background
-        # PLAYER HAND
+        # Draw AI suggestion box
+        ai_box_x = 800  # Position of the box on the right
+        ai_box_y = 50
+        ai_box_width = 300
+        ai_box_height = 100
+        pygame.draw.rect(self.screen, (200, 200, 200), (ai_box_x, ai_box_y, ai_box_width, ai_box_height), 0, 10)  # Box with rounded corners
+
+        # Display AI suggestion text in the box
+        if ai_action:
+            suggestion_text = self.font.render(f"AI Bot says: {ai_action}!", True, (0, 0, 0))
+            suggestion_rect = suggestion_text.get_rect(center=(ai_box_x + ai_box_width // 2, ai_box_y + ai_box_height // 2))
+            self.screen.blit(suggestion_text, suggestion_rect)
+
+        # Render player cards
         for i in self.game.player_hand:
             player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
             pygame.draw.rect(self.screen, 'white', [player_x_position, player_y_position, 100, 150], 0, 5)
@@ -142,36 +213,26 @@ class PlayerBlackjack:
             bottom_right_text_position = (player_x_position + 75, player_y_position + 125)
             self.screen.blit(player_score, top_left_text_position)
             self.screen.blit(player_score, bottom_right_text_position)
-            # Move to the next position for the next card
             player_x_position += 110  # Add spacing between cards
-        
-         # DEALER HAND
-        if self.show_hand == True:
+
+        # Render dealer cards
+        if self.show_hand:
             for i in self.game.dealer_hand:
                 dealer_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
                 pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
-                # Draw the text inside the rectangle
                 top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
                 bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
                 self.screen.blit(dealer_score, top_left_text_position)
                 self.screen.blit(dealer_score, bottom_right_text_position)
                 dealer_x_position += 110  # Add spacing between cards
-                dealer_val = self.game.hand_value(self.game.dealer_hand)
-                dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
-                self.screen.blit(dealer_text, (50, 400))
-        else: # Show just the first card, before the player ends their turn
+        else:
             dealer_score = pygame.font.Font(None, 30).render(str(dealer_val), True, "black")
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
-            # Draw the text inside the rectangle
             top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
             bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
             self.screen.blit(dealer_score, top_left_text_position)
             self.screen.blit(dealer_score, bottom_right_text_position)
-            dealer_x_position += 110  # Add spacing between cards
-            self.screen.blit(dealer_text, (50, 400))
 
-        # pygame.draw.rect(self.screen, 'white', [400, 300, 100, 150], 0, 5)
-        self.screen.blit(player_text, (50, 100))
 
     def display_result(self):
         """Display the game result on screen."""

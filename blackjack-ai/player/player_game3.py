@@ -85,6 +85,12 @@ class PlayerBlackjackSwitch:
             return random.choice(["Switch", "Hit Hand 1", "Hit Hand 2", "Double Hand 1", "Double Hand 2", "Stand"])
 
     def display_game_state(self):
+        player_hand1_posX = 450
+        player_hand1_posY = 100
+        player_hand2_posX = 450
+        player_hand2_posY = 300
+        dealer_x_position = 450
+        dealer_y_position = 500
         """Display the game state for both hands and the dealer's visible card."""
         player_val1 = self.game.hand_value(self.game.player_hand1)
         player_val2 = self.game.hand_value(self.game.player_hand2)
@@ -101,9 +107,50 @@ class PlayerBlackjackSwitch:
 
         self.screen.blit(player_text1, (50, 50))
         self.screen.blit(player_text2, (50, 100))
-        self.screen.blit(dealer_text, (50, 150))
+        self.screen.blit(dealer_text, (50, 500))
+        
+        for i in self.game.player_hand1:
+            player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+            pygame.draw.rect(self.screen, 'white', [player_hand1_posX, player_hand1_posY, 100, 150], 0, 5)
+            # Draw the text inside the rectangle
+            top_left_text_position = (player_hand1_posX + 10, player_hand1_posY + 10)
+            bottom_right_text_position = (player_hand1_posX + 70, player_hand1_posY + 120)
+            self.screen.blit(player_score, top_left_text_position)
+            self.screen.blit(player_score, bottom_right_text_position)
+            # Move to the next position for the next card
+            player_hand1_posX += 110  # Add spacing between cards
+
+        for i in self.game.player_hand2:
+            player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+            pygame.draw.rect(self.screen, 'white', [player_hand2_posX, player_hand2_posY, 100, 150], 0, 5)
+            # Draw the text inside the rectangle
+            top_left_text_position = (player_hand2_posX + 10, player_hand2_posY + 10)
+            bottom_right_text_position = (player_hand2_posX + 70, player_hand2_posY + 120)
+            self.screen.blit(player_score, top_left_text_position)
+            self.screen.blit(player_score, bottom_right_text_position)
+            # Move to the next position for the next card
+            player_hand2_posX += 110  # Add spacing between cards
+
+        dealer_score = pygame.font.Font(None, 30).render(str(self.game.dealer_hand[0][0]), True, "black")
+        pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
+        pygame.draw.rect(self.screen, 'white', [dealer_x_position+110, dealer_y_position, 100, 150], 0, 5)
+        pygame.draw.rect(self.screen, 'red', [dealer_x_position+120, dealer_y_position+10, 80, 130], 0, 5)
+        # Draw the text inside the rectangle
+        top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
+        bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
+        self.screen.blit(dealer_score, top_left_text_position)
+        self.screen.blit(dealer_score, bottom_right_text_position)
+        dealer_x_position += 110  # Add spacing between cards
+        # self.screen.blit(dealer_text, (50, 400))
+
 
     def display_full_result(self):
+        player_hand1_posX = 450
+        player_hand1_posY = 100
+        player_hand2_posX = 450
+        player_hand2_posY = 300
+        dealer_x_position = 450
+        dealer_y_position = 500
         """Display the full dealer hand and the game results."""
         dealer_val = self.game.hand_value(self.game.dealer_hand)
         dealer_hand_str = ', '.join([f'{card[0]}{card[1][0]}' for card in self.game.dealer_hand])
@@ -121,16 +168,51 @@ class PlayerBlackjackSwitch:
         player_text1 = self.font.render(f"Player Hand 1: {player_val1} ({player_hand1_str})", True, (255, 255, 255))
         player_text2 = self.font.render(f"Player Hand 2: {player_val2} ({player_hand2_str})", True, (255, 255, 255))
 
-        self.screen.blit(dealer_text, (50, 50))
+        self.screen.blit(dealer_text, (50, 500))
         self.screen.blit(player_text1, (50, 100))
         self.screen.blit(player_text2, (50, 150))
+
+        for i in self.game.player_hand1:
+            player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+            pygame.draw.rect(self.screen, 'white', [player_hand1_posX, player_hand1_posY, 100, 150], 0, 5)
+            # Draw the text inside the rectangle
+            top_left_text_position = (player_hand1_posX + 10, player_hand1_posY + 10)
+            bottom_right_text_position = (player_hand1_posX + 70, player_hand1_posY + 120)
+            self.screen.blit(player_score, top_left_text_position)
+            self.screen.blit(player_score, bottom_right_text_position)
+            # Move to the next position for the next card
+            player_hand1_posX += 110  # Add spacing between cards
+
+        for i in self.game.player_hand2:
+            player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+            pygame.draw.rect(self.screen, 'white', [player_hand2_posX, player_hand2_posY, 100, 150], 0, 5)
+            # Draw the text inside the rectangle
+            top_left_text_position = (player_hand2_posX + 10, player_hand2_posY + 10)
+            bottom_right_text_position = (player_hand2_posX + 70, player_hand2_posY + 120)
+            self.screen.blit(player_score, top_left_text_position)
+            self.screen.blit(player_score, bottom_right_text_position)
+            # Move to the next position for the next card
+            player_hand2_posX += 110  # Add spacing between cards
+
+        for i in self.game.dealer_hand:
+                dealer_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
+                pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
+                # Draw the text inside the rectangle
+                top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
+                bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
+                self.screen.blit(dealer_score, top_left_text_position)
+                self.screen.blit(dealer_score, bottom_right_text_position)
+                dealer_x_position += 110  # Add spacing between cards
+                dealer_val = self.game.hand_value(self.game.dealer_hand)
+                dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
+                # self.screen.blit(dealer_text, (50, 400))
 
         # Display results for both hands
         y_offset = 200
         for result in results:
             result_text = self.font.render(result, True, (255, 255, 255))
-            self.screen.blit(result_text, (50, y_offset))
-            y_offset += 50
+            self.screen.blit(result_text, (850, y_offset))
+            y_offset += 150
 
         pygame.display.flip()
         pygame.time.wait(5000)

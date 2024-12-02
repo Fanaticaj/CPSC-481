@@ -10,7 +10,7 @@ pygame.init()
 SCREEN = pygame.display.set_mode((1280, 720))
 pygame.display.set_caption("Blackjack Main menu")
 
-BG = pygame.image.load("blackjack-ai\images\Background.png" if os.name == "nt" else "blackjack-ai/images/Background.png")
+BG = pygame.image.load("images/Background.png" if os.name == "nt" else "images/Background.png")
 
 def get_font(size): 
     return pygame.font.Font(None, size)  # Placeholder for font loading
@@ -68,6 +68,9 @@ def options():
         pygame.display.update()
 
 def main_menu():
+
+    from ai.q_table_manager import load_q_table_json
+    q_table = load_q_table_json()
     while True:
         SCREEN.blit(BG, (0, 0))
 
@@ -85,7 +88,7 @@ def main_menu():
                             text_input="European Blackjack", font=get_font(35), base_color="#d7fcd4", hovering_color="White")
 
         
-        QUIT_BUTTON = Button(image=pygame.image.load( "blackjack-ai\images\Quit Rect.png" if os.name == "nt" else "blackjack-ai/images/Quit Rect.png"), pos=(640, 550), 
+        QUIT_BUTTON = Button(image=pygame.image.load( "images/Quit Rect.png" if os.name == "nt" else "images/Quit Rect.png"), pos=(640, 550), 
                             text_input="QUIT", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
 
         SCREEN.blit(MENU_TEXT, MENU_RECT)
@@ -102,11 +105,11 @@ def main_menu():
                 if black_Jack1.checkForInput(MENU_MOUSE_POS):
                     if observe_mode() :
                         #print("OBSERVATION MODE")
-                        player_blackjack = PlayerBlackjack(True, SCREEN)
+                        player_blackjack = PlayerBlackjack(True, SCREEN,  q_table=q_table)
                         player_blackjack.run()
                     else :
                         #print("PLAY MODE")
-                        player_blackjack = PlayerBlackjack(False, SCREEN)
+                        player_blackjack = PlayerBlackjack(False, SCREEN, q_table=q_table)
                         player_blackjack.run() 
                 if black_Jack2.checkForInput(MENU_MOUSE_POS):
                     if observe_mode() :
