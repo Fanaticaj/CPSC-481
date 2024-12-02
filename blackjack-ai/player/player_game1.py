@@ -92,9 +92,6 @@ class PlayerBlackjack:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         running = False
-                    elif event.type == pygame.MOUSEBUTTONDOWN:
-                        x, y = event.pos
-                        action = self.get_button_action(x, y, state)  # Now uses policy-based action in headless mode
                     elif event.type == pygame.KEYDOWN and not self.observer_mode:
                         action = self.get_key_action(event, state)
 
@@ -150,10 +147,6 @@ class PlayerBlackjack:
             elif event.key == pygame.K_p and self.game.can_split(self.game.player_hand):
                 return "Split"
         
-    
-    def get_button_action(self, x, y, state):
-        print("Clicked")
-    
     def play_split_hands(self, split_hands):
         for hand in split_hands:
             hand_running = True
