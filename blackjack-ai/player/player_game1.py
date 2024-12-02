@@ -53,7 +53,6 @@ class PlayerBlackjack:
                 print(f"Action Values: {action_values}")
                 print(f"AI says to {best_action}")
                 self.logged_states.add(state)
-        
             return best_action
         else:
             # Log missing state details only once
@@ -73,6 +72,7 @@ class PlayerBlackjack:
         print(f'Dealer: {self.game.dealer_hand}')
         print(f'Observer Mode =', self.observer_mode)
         running = True
+        ai_action = None
         if self.screen: self.display_game_state()
         while running:
             action = None
@@ -81,9 +81,13 @@ class PlayerBlackjack:
                 str(self.game.dealer_hand[0][0]),  # Dealer's visible card
                 self.game.has_usable_ace(self.game.player_hand)
             )
+            if ai_action == None:
+                ai_action = self.get_ai_action(state)
 
-            ai_action = self.get_ai_action(state)
             if self.screen:
+                # Display the current game state and AI suggestion
+                self.display_game_state(ai_action)  # Pass AI suggestion to the display method
+                pygame.display.flip()
                 # Only handle Pygame events if a screen is present
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -93,28 +97,31 @@ class PlayerBlackjack:
                         action = self.get_button_action(x, y, state)  # Now uses policy-based action in headless mode
                     elif event.type == pygame.KEYDOWN and not self.observer_mode:
                         action = self.get_key_action(event, state)
-                # Display the current game state and AI suggestion
-                self.display_game_state(ai_action)  # Pass AI suggestion to the display method
-                pygame.display.flip()
+
 
             if self.observer_mode:
                 action = ai_action
 
+            if self.observer_mode: pygame.time.wait(self.ai_wait_interval)
             if action == "Hit":
+                ai_action = None
                 print("hit!")
                 self.game.deal_card(self.game.player_hand)
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
             elif action == "Double":
+                ai_action = None
                 print("double!")
                 self.game.deal_card(self.game.player_hand)
                 self.show_hand = True
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
+                ai_action = None
                 print("Stand!")
                 self.show_hand = True
                 running = False  # End player's turn, proceed to check winner
             elif action == "Split" and self.game.can_split(self.game.player_hand):
+                ai_action = None
                 print("Split!")
                 split_hands = self.game.split_hand(self.game.player_hand)
                 self.play_split_hands(split_hands)
@@ -122,14 +129,11 @@ class PlayerBlackjack:
                 running = False
 
             if self.show_hand: self.game.play_dealer_hand() # Deal the dealer's hand at the end
-            
-            # Display game state if screen is available
-            if self.screen:
-                self.display_game_state()
-                pygame.display.flip()
-        
+
         # Display result if screen is available
         if self.screen:
+            self.display_game_state()
+            pygame.display.flip()
             if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
             self.display_result()
 
@@ -146,9 +150,6 @@ class PlayerBlackjack:
             elif event.key == pygame.K_p and self.game.can_split(self.game.player_hand):
                 return "Split"
         
-    def get_ai_action(self, state):
-        if self.observer_mode: pygame.time.wait(self.ai_wait_interval)
-        return choose_action(state, self.game.player_hand, ["Hit", "Stand", "Double", "Split"] )
     
     def get_button_action(self, x, y, state):
         print("Clicked")
