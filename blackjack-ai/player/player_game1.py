@@ -110,7 +110,7 @@ class PlayerBlackjack:
                 self.display_result()
                 running = False
 
-            self.game.play_dealer_hand() # Deal the dealer's hand at the end
+        if self.show_hand: self.game.play_dealer_hand() # Deal the dealer's hand at the end
                 
         # Display result if screen is available
         if self.screen:
@@ -167,12 +167,6 @@ class PlayerBlackjack:
         # Fill background
         self.screen.fill((0, 100, 0))  # Green background
 
-        # Render Player and Dealer Hand text
-        player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
-        dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
-        self.screen.blit(player_text, (50, 100))
-        self.screen.blit(dealer_text, (50, 400))
-
         # Draw AI suggestion box
         ai_box_x = 800  # Position of the box on the right
         ai_box_y = 50
@@ -207,6 +201,8 @@ class PlayerBlackjack:
                 self.screen.blit(dealer_score, top_left_text_position)
                 self.screen.blit(dealer_score, bottom_right_text_position)
                 dealer_x_position += 110  # Add spacing between cards
+
+            dealer_val = self.game.hand_value(self.game.dealer_hand)  # Dealer shows only one card
         else:
             dealer_score = pygame.font.Font(None, 30).render(str(dealer_val), True, "black")
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
@@ -214,6 +210,12 @@ class PlayerBlackjack:
             bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
             self.screen.blit(dealer_score, top_left_text_position)
             self.screen.blit(dealer_score, bottom_right_text_position)
+
+        # Render Player and Dealer Hand text
+        player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
+        dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
+        self.screen.blit(player_text, (50, 100))
+        self.screen.blit(dealer_text, (50, 400))
 
 
     def display_result(self):
