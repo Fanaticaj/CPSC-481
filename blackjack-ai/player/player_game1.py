@@ -1,18 +1,69 @@
 import pygame
 import logging
 from games.game1 import Blackjack
+from ai.q_table_manager import load_q_table_json
 import random
 from ai.basic_strategy import choose_action
 class PlayerBlackjack:
-    def __init__(self, screen=None):
+    def __init__(self, screen=None, q_table=None):
         self.show_hand = False
         self.screen = screen
         self.game = Blackjack()
+
+        # Load the Q-table for regular blackjack
+        self.q_table = q_table if q_table else {}
+            
+
         if self.screen:
             pygame.font.init()  # Initialize fonts if using graphics
             self.font = pygame.font.Font(None, 36)
         else:
             self.font = None  # No font needed in headless mode
+    
+    def is_pair(self, hand):
+        """Check if the player's hand contains a pair."""
+        if len(hand) != 2:  # A pair is only possible with exactly two cards
+            return False
+        return hand[0][0] == hand[1][0]  # Compare the ranks of the two cards
+
+    
+    def get_ai_action(self, state):
+        """Retrieve the best action from the Q-table for the current state."""
+        if state in self.q_table:
+            action_values = self.q_table[state]
+        
+            # Exclude "Double" if the player has more than two cards
+            if len(self.game.player_hand) > 2 and "Double" in action_values:
+                action_values = {k: v for k, v in action_values.items() if k != "Double"}
+        
+            # Exclude "Split" if the player's hand is not a pair
+            if not self.is_pair(self.game.player_hand) and "Split" in action_values:
+                action_values = {k: v for k, v in action_values.items() if k != "Split"}
+        
+            # Get the action with the highest value
+            best_action = max(action_values, key=action_values.get)
+        
+            # Log state details and AI recommendation only once per state
+            if not hasattr(self, "logged_states"):
+                self.logged_states = set()
+            if state not in self.logged_states:
+                print(f"Current State: {state}")
+                print(f"Action Values: {action_values}")
+                print(f"AI says to {best_action}")
+                self.logged_states.add(state)
+        
+            return best_action
+        else:
+            # Log missing state details only once
+            if not hasattr(self, "logged_states"):
+                self.logged_states = set()
+            if state not in self.logged_states:
+                print(f"State not found in Q-table. Defaulting to 'Stand'. Current State: {state}")
+                self.logged_states.add(state)
+            return "Stand"  # Default action if the state is not in the Q-table
+
+
+
 
     def run(self):
         self.game.new_game()
@@ -28,9 +79,16 @@ class PlayerBlackjack:
 
             state = (
                 self.game.hand_value(self.game.player_hand),
-                self.game.dealer_hand[0],  # Dealer's visible card
+                str(self.game.dealer_hand[0][0]),  # Dealer's visible card
                 self.game.has_usable_ace(self.game.player_hand)
             )
+
+            ai_action = self.get_ai_action(state)
+
+            # Display the current game state and AI suggestion
+            if self.screen:
+                self.display_game_state(ai_action)  # Pass AI suggestion to the display method
+                pygame.display.flip()
             
             action = self.get_player_action(state)  # Now uses policy-based action in headless mode
             
@@ -98,7 +156,7 @@ class PlayerBlackjack:
                     self.game.deal_card(hand)
                     hand_running = False
 
-    def display_game_state(self):
+    def display_game_state(self, ai_action=None):
         """Display the player's and dealer's hand values on screen."""
         player_x_position = 400
         player_y_position = 100
@@ -107,8 +165,16 @@ class PlayerBlackjack:
         player_val = self.game.hand_value(self.game.player_hand)
         dealer_val = self.game.hand_value(self.game.dealer_hand[:1])  # Dealer shows only one card
 
+        # Render AI suggestion
+        if ai_action:
+            suggestion_text = self.font.render(f"AI says: {ai_action}!", True, (255, 255, 0))
+            self.screen.blit(suggestion_text, (800, 50))  # Position the text box on the right
+
+
         player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
         dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
+        self.screen.blit(player_text, (50, 100))
+        self.screen.blit(dealer_text, (50, 400))    
 
         self.screen.fill((0, 100, 0))  # Green background
         # PLAYER HAND
