@@ -165,19 +165,29 @@ class PlayerBlackjack:
         player_val = self.game.hand_value(self.game.player_hand)
         dealer_val = self.game.hand_value(self.game.dealer_hand[:1])  # Dealer shows only one card
 
-        # Render AI suggestion
-        if ai_action:
-            suggestion_text = self.font.render(f"AI says: {ai_action}!", True, (255, 255, 0))
-            self.screen.blit(suggestion_text, (800, 50))  # Position the text box on the right
+        # Fill background
+        self.screen.fill((0, 100, 0))  # Green background
 
-
+        # Render Player and Dealer Hand text
         player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
         dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
         self.screen.blit(player_text, (50, 100))
-        self.screen.blit(dealer_text, (50, 400))    
+        self.screen.blit(dealer_text, (50, 400))
 
-        self.screen.fill((0, 100, 0))  # Green background
-        # PLAYER HAND
+        # Draw AI suggestion box
+        ai_box_x = 800  # Position of the box on the right
+        ai_box_y = 50
+        ai_box_width = 300
+        ai_box_height = 100
+        pygame.draw.rect(self.screen, (200, 200, 200), (ai_box_x, ai_box_y, ai_box_width, ai_box_height), 0, 10)  # Box with rounded corners
+
+        # Display AI suggestion text in the box
+        if ai_action:
+            suggestion_text = self.font.render(f"AI Bot says: {ai_action}!", True, (0, 0, 0))
+            suggestion_rect = suggestion_text.get_rect(center=(ai_box_x + ai_box_width // 2, ai_box_y + ai_box_height // 2))
+            self.screen.blit(suggestion_text, suggestion_rect)
+
+        # Render player cards
         for i in self.game.player_hand:
             player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
             pygame.draw.rect(self.screen, 'white', [player_x_position, player_y_position, 100, 150], 0, 5)
@@ -186,36 +196,26 @@ class PlayerBlackjack:
             bottom_right_text_position = (player_x_position + 75, player_y_position + 125)
             self.screen.blit(player_score, top_left_text_position)
             self.screen.blit(player_score, bottom_right_text_position)
-            # Move to the next position for the next card
             player_x_position += 110  # Add spacing between cards
-        
-         # DEALER HAND
-        if self.show_hand == True:
+
+        # Render dealer cards
+        if self.show_hand:
             for i in self.game.dealer_hand:
                 dealer_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
                 pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
-                # Draw the text inside the rectangle
                 top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
                 bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
                 self.screen.blit(dealer_score, top_left_text_position)
                 self.screen.blit(dealer_score, bottom_right_text_position)
                 dealer_x_position += 110  # Add spacing between cards
-                dealer_val = self.game.hand_value(self.game.dealer_hand)
-                dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
-                self.screen.blit(dealer_text, (50, 400))
-        else: # Show just the first card, before the player ends their turn
+        else:
             dealer_score = pygame.font.Font(None, 30).render(str(dealer_val), True, "black")
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
-            # Draw the text inside the rectangle
             top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
             bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
             self.screen.blit(dealer_score, top_left_text_position)
             self.screen.blit(dealer_score, bottom_right_text_position)
-            dealer_x_position += 110  # Add spacing between cards
-            self.screen.blit(dealer_text, (50, 400))
 
-        # pygame.draw.rect(self.screen, 'white', [400, 300, 100, 150], 0, 5)
-        self.screen.blit(player_text, (50, 100))
 
     def display_result(self):
         """Display the game result on screen."""
