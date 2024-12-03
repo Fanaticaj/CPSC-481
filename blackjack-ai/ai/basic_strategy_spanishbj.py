@@ -1,11 +1,15 @@
 import random
 import logging
-alpha = 0.1 # Learning rate
-gamma = 0.9 # discount factor
-epsilon = 0.1 # exploration rate
+alpha = 0.05 # Learning rate
+gamma = 0.95 # discount factor
+epsilon = 0.5 # exploration rate
+min_epsilon = 0.01 # Min exploration rate
+decay_rate = 0.995
 
-actions = ["Hit", "Stand"]
+epsilon = max(min_epsilon, epsilon * decay_rate)
 
+actions = ["Hit", "Stand", "Double", "Split"]
+random_actions = ["Hit", "Stand", "Double"]
 q_table = {}
 
 
@@ -66,60 +70,147 @@ basic_strategy_spanish_q_table = {
     ('A,9', 2): 'S', ('A,9', 3): 'S', ('A,9', 4): 'S', ('A,9', 5): 'S', ('A,9', 6): 'S',
     ('A,9', 7): 'S', ('A,9', 8): 'S', ('A,9', 9): 'S', ('A,9', 10): 'S', ('A,9', 'A'): 'S',
     ('A,10', 2): 'S', ('A,10', 3): 'S', ('A,10', 4): 'S', ('A,10', 5): 'S', ('A,10', 6): 'S',
-    ('A,10', 7): 'S', ('A,10', 8): 'S', ('A,10', 9): 'S', ('A,10', 10): 'S', ('A,10', 'A'): 'S'
+    ('A,10', 7): 'S', ('A,10', 8): 'S', ('A,10', 9): 'S', ('A,10', 10): 'S', ('A,10', 'A'): 'S',
+    
+    # Splitting Totals
+    ('A,A', 2): 'Y', ('A,A', 3): 'Y', ('A,A', 4): 'Y', ('A,A', 5): 'Y', ('A,A', 6): 'Y',
+    ('A,A', 7): 'Y', ('A,A', 8): 'Y', ('A,A', 9): 'Y', ('A,A', 10): 'Y', ('A,A', 'A'): 'Y',
+    ('10,10', 2): 'N', ('10,10', 3): 'N', ('10,10', 4): 'N', ('10,10', 5): 'N', ('10,10', 6): 'N',
+    ('10,10', 7): 'N', ('10,10', 8): 'N', ('10,10', 9): 'N', ('10,10', 10): 'N', ('10,10', 'A'): 'N',
+    ('9,9', 2): 'N', ('9,9', 3): 'Y', ('9,9', 4): 'Y', ('9,9', 5): 'Y', ('9,9', 6): 'Y',
+    ('9,9', 7): 'N', ('9,9', 8): 'Y', ('9,9', 9): 'Y', ('9,9', 10): 'N', ('9,9', 'A'): 'N',
+    ('8,8', 2): 'Y', ('8,8', 3): 'Y', ('8,8', 4): 'Y', ('8,8', 5): 'Y', ('8,8', 6): 'Y',
+    ('8,8', 7): 'Y', ('8,8', 8): 'Y', ('8,8', 9): 'Y', ('8,8', 10): 'Y', ('8,8', 'A'): 'N',
+    ('7,7', 2): 'Y', ('7,7', 3): 'Y', ('7,7', 4): 'Y', ('7,7', 5): 'Y', ('7,7', 6): 'Y',
+    ('7,7', 7): 'Y', ('7,7', 8): 'N', ('7,7', 9): 'N', ('7,7', 10): 'N', ('7,7', 'A'): 'N',
+    ('6,6', 2): 'N', ('6,6', 3): 'N', ('6,6', 4): 'Y', ('6,6', 5): 'Y', ('6,6', 6): 'Y',
+    ('6,6', 7): 'N', ('6,6', 8): 'N', ('6,6', 9): 'N', ('6,6', 10): 'N', ('6,6', 'A'): 'N',
+    ('5,5', 2): 'D', ('5,5', 3): 'D', ('5,5', 4): 'D', ('5,5', 5): 'D', ('5,5', 6): 'D',
+    ('5,5', 7): 'D', ('5,5', 8): 'D', ('5,5', 9): 'N', ('5,5', 10): 'N', ('5,5', 'A'): 'N',
+    ('4,4', 2): 'N', ('4,4', 3): 'N', ('4,4', 4): 'N', ('4,4', 5): 'D', ('4,4', 6): 'D',
+    ('4,4', 7): 'N', ('4,4', 8): 'N', ('4,4', 9): 'N', ('4,4', 10): 'N', ('4,4', 'A'): 'N',
+    ('3,3', 2): 'Y', ('3,3', 3): 'Y', ('3,3', 4): 'Y', ('3,3', 5): 'Y', ('3,3', 6): 'Y',
+    ('3,3', 7): 'Y', ('3,3', 8): 'N', ('3,3', 9): 'N', ('3,3', 10): 'N', ('3,3', 'A'): 'N',
+    ('2,2', 2): 'Y', ('2,2', 3): 'Y', ('2,2', 4): 'Y', ('2,2', 5): 'Y', ('2,2', 6): 'Y',
+    ('2,2', 7): 'Y', ('2,2', 8): 'Y', ('2,2', 9): 'N', ('2,2', 10): 'N', ('2,2', 'A'): 'N',
 }
 
 # Initialize Q-values for a given state-action pair
 def initialize_state_action(state):
-    player_total, dealer_card, usable_ace = state
-    if player_total > 21:  # Prevent invalid Q-table entries
-        logging.warning(f"Skipping invalid state initialization for: {state}")
-        return
+    """
+    Initialize Q-values for a given state. Handles pairs and regular states.
+    """
     if state not in q_table:
-        q_table[state] = {'Hit': 0.0, 'Stand': 0.0}
+        if isinstance(state[0], str):
+            q_table[state] = {'Split': 0.0, 'Hit': 0.0, 'Stand': 0.0, 'Double': 0.0}
+        else:
+            q_table[state] = {'Hit': 0.0, 'Stand': 0.0, 'Double': 0.0, 'Split': 0.0}
+        logging.info(f"Initialized state in Q-table: {state}")
 
 # Define function to choose an action based on epsilon-greedy policy and basic strategy
-def choose_action(state):
-    player_total, dealer_card, usable_ace = state
+def choose_action(state, hand, available_actions):
+    """
+    Choose an action based on the Q-table or basic strategy, constrained by available actions.
 
-    # Convert 'H' and 'S' to actual action strings for Q-learning
-    strategy_action = basic_strategy_spanish_q_table.get((player_total, dealer_card), None)
-    if strategy_action:
-        if strategy_action in ['H', 'D/H', 'P/H', 'R/H']:
-            basic_action = "Hit"
-        elif strategy_action in ['S', 'D/S']:
-            basic_action = "Stand"
+    Args:
+        state (tuple): Current state of the game.
+        hand (list): The player's current hand.
+        available_actions (list): List of actions allowed in the current state.
+
+    Returns:
+        str: The chosen action.
+    """
+    is_exploratory = False  # Default to exploitation
+
+    # Exploration: With probability epsilon, choose a random action
+    if random.uniform(0, 1) < epsilon:
+        action = random.choice(available_actions)
+        is_exploratory = True  # Set to exploratory
+    else:
+        # Exploitation: Choose the best action based on Q-values or basic strategy
+        if isinstance(state[0], str):  # Splittable pair
+            pair, dealer_card = state
+            if state in q_table:
+                q_values = q_table[state]
+                action = max(q_values, key=q_values.get)
+            else:
+                # Default to basic strategy
+                strategy_action = basic_strategy_spanish_q_table.get((pair, dealer_card), None)
+                action = {"H": "Hit", "S": "Stand", "D": "Double", "Y": "Split", "N": "Stand"}.get(strategy_action, "Stand")
         else:
-            basic_action = "Stand"
+            # Non-pair states
+            if state in q_table:
+                q_values = q_table[state]
+                action = max(q_values, key=q_values.get)
+            else:
+                # Default to basic strategy
+                player_total, dealer_card, usable_ace = state
+                strategy_action = basic_strategy_spanish_q_table.get((player_total, dealer_card), None)
+                action = {"H": "Hit", "S": "Stand", "D": "Double"}.get(strategy_action, "Stand")
 
-        # Follow basic strategy action with 90% probability
-        if random.uniform(0, 1) < 0.9:
-            return basic_action
+    # Ensure the chosen action is in the list of available actions
+    action = action if action in available_actions else "Stand"
 
-    # Use epsilon-greedy policy if no basic strategy recommendation or for exploration
-    if random.uniform(0, 1) < epsilon:  # Exploration
-        return random.choice(["Hit", "Stand"])
-    else:  # Exploitation
-        return max(q_table[state], key=q_table[state].get)
+    # Log exploration or exploitation
+    if is_exploratory:
+        logging.info(f"Exploration: State: {state}, Chosen Action: {action}")
+    else:
+        logging.info(f"Exploitation: State: {state}, Chosen Action: {action}")
+
+    return action
+
+
 
 # Define function to update Q-value
 def update_q_value(state, action, reward, next_state):
-    # Handle terminal state where next_state is None
+    # Initialize the state in the Q-table if it doesn't exist
+    if state not in q_table:
+        initialize_state_action(state)
+    
     if next_state is None:
-        next_max = 0  # No future rewards in a terminal state
+        next_max = 0
     else:
-        # Initialize next state in the Q-table if it’s not already there
-        initialize_state_action(next_state)
-        next_max = max(q_table[next_state].values())  # Highest Q-value for the next state
-
-    # Q-learning update rule
+        if next_state not in q_table:
+            initialize_state_action(next_state)
+        next_max = max(q_table[next_state].values())
+    
     old_value = q_table[state][action]
     q_table[state][action] = old_value + alpha * (reward + gamma * next_max - old_value)
 
 
-# Example state representation
-# (player_total, dealer_card, usable_ace)
-current_state = (15, 10, False)  # Example: player has 15, dealer shows 10, no usable Ace
+def get_state(hand, dealer_card, usable_ace):
+    """
+    Represent the state of the game, considering pairs for splitting and total for other hands.
 
-# Initialize state-action pairs for the current state
-initialize_state_action(current_state)
+    Args:
+        hand (list): Player's current hand.
+        dealer_card (tuple): Dealer's up card (rank, suit).
+        usable_ace (bool): Whether the hand has a usable ace.
+
+    Returns:
+        tuple: Encoded state of the game.
+    """
+    if len(hand) == 2 and hand[0][0] == hand[1][0]:  # Splittable pair
+        pair = f"{hand[0][0]},{hand[1][0]}"  # Represent as pair (e.g., '8,8')
+        return (pair, dealer_card[0])  # Pair state with dealer card rank
+    else:
+        # Correct hand value calculation
+        total = 0
+        aces = 0
+        for card in hand:
+            rank = card[0]
+            if rank.isdigit():  # Numeric cards
+                total += int(rank)
+            elif rank in ['J', 'Q', 'K']:  # Face cards
+                total += 10
+            elif rank == 'A':  # Ace
+                total += 11
+                aces += 1
+
+        # Adjust for aces if the total exceeds 21
+        while total > 21 and aces > 0:
+            total -= 10
+            aces -= 1
+
+        usable_ace = aces > 0
+        return (total, dealer_card[0], usable_ace)
