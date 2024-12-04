@@ -5,8 +5,10 @@ from ai.q_table_manager import load_q_table_json
 import random
 from ai.basic_strategy import choose_action
 class PlayerBlackjack:
-    def __init__(self, screen=None, q_table=None):
+    def __init__(self, observer_mode, screen=None, q_table=None):
+        self.observer_mode = observer_mode
         self.show_hand = False
+        self.ai_wait_interval = 1000
         self.screen = screen
         self.game = Blackjack()
 
@@ -51,7 +53,6 @@ class PlayerBlackjack:
                 print(f"Action Values: {action_values}")
                 print(f"AI says to {best_action}")
                 self.logged_states.add(state)
-        
             return best_action
         else:
             # Log missing state details only once
@@ -69,42 +70,56 @@ class PlayerBlackjack:
         self.game.new_game()
         print(self.game.player_hand)
         print(f'Dealer: {self.game.dealer_hand}')
+        print(f'Observer Mode =', self.observer_mode)
         running = True
+        ai_action = None
+        if self.screen: self.display_game_state()
         while running:
-            if self.screen:
-                # Only handle Pygame events if a screen is present
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
-
+            action = None
             state = (
                 self.game.hand_value(self.game.player_hand),
                 str(self.game.dealer_hand[0][0]),  # Dealer's visible card
                 self.game.has_usable_ace(self.game.player_hand)
             )
+            if ai_action == None:
+                ai_action = self.get_ai_action(state)
 
-            ai_action = self.get_ai_action(state)
-
-            # Display the current game state and AI suggestion
             if self.screen:
+                # Display the current game state and AI suggestion
                 self.display_game_state(ai_action)  # Pass AI suggestion to the display method
                 pygame.display.flip()
-            
-            action = self.get_player_action(state)  # Now uses policy-based action in headless mode
-            
+                # Only handle Pygame events if a screen is present
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                    elif event.type == pygame.KEYDOWN and not self.observer_mode:
+                        action = self.get_key_action(event, state)
+
+
+            if self.observer_mode:
+                action = ai_action
+
+            if self.observer_mode: pygame.time.wait(self.ai_wait_interval)
             if action == "Hit":
+                ai_action = None
+                print("hit!")
                 self.game.deal_card(self.game.player_hand)
-                pygame.time.wait(100) # Without this it keeps on hitting every single frame, instead of just once
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
             elif action == "Double":
+                ai_action = None
+                print("double!")
                 self.game.deal_card(self.game.player_hand)
                 self.show_hand = True
                 running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
+                ai_action = None
+                print("Stand!")
                 self.show_hand = True
                 running = False  # End player's turn, proceed to check winner
             elif action == "Split" and self.game.can_split(self.game.player_hand):
+                ai_action = None
+                print("Split!")
                 split_hands = self.game.split_hand(self.game.player_hand)
                 self.play_split_hands(split_hands)
                 self.display_result()
@@ -116,25 +131,22 @@ class PlayerBlackjack:
         if self.screen:
             self.display_game_state()
             pygame.display.flip()
+            if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
             self.display_result()
 
-    def get_player_action(self, state):
+    def get_key_action(self, event, state):
         """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
-        if self.screen:
+        if self.screen and not self.observer_mode and event.type == pygame.KEYDOWN:
             # Handle interactive keys if screen is present
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_h]:
+            if event.key == pygame.K_h:
                 return "Hit"
-            elif keys[pygame.K_s]:
+            elif event.key == pygame.K_s:
                 return "Stand"
-            elif keys[pygame.K_d]:
+            elif event.key == pygame.K_d:
                 return "Double"
-            elif keys[pygame.K_p] and self.game.can_split(self.game.player_hand):
+            elif event.key == pygame.K_p and self.game.can_split(self.game.player_hand):
                 return "Split"
-        else:
-            # In headless mode, return random or policy-based actions
-            return choose_action(state, self.game.player_hand)
-    
+        
     def play_split_hands(self, split_hands):
         for hand in split_hands:
             hand_running = True
@@ -221,6 +233,7 @@ class PlayerBlackjack:
     def display_result(self):
         """Display the game result on screen."""
         result = self.game.check_winner()
+        print(result)
         result_text = self.font.render(result, True, (255, 255, 255))
         self.screen.blit(result_text, (50, 300))
         pygame.display.flip()

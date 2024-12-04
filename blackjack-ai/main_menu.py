@@ -103,21 +103,72 @@ def main_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if black_Jack1.checkForInput(MENU_MOUSE_POS):
-                    player_blackjack = PlayerBlackjack(SCREEN, q_table=q_table)
-                    player_blackjack.run()
+                    if observe_mode() :
+                        #print("OBSERVATION MODE")
+                        player_blackjack = PlayerBlackjack(True, SCREEN,  q_table=q_table)
+                        player_blackjack.run()
+                    else :
+                        #print("PLAY MODE")
+                        player_blackjack = PlayerBlackjack(False, SCREEN, q_table=q_table)
+                        player_blackjack.run() 
                 if black_Jack2.checkForInput(MENU_MOUSE_POS):
-                    player_blackjack_spanish = PlayerSpanishBlackjack(SCREEN)
-                    player_blackjack_spanish.run()
+                    if observe_mode() :
+                        player_blackjack_spanish = PlayerSpanishBlackjack(SCREEN)
+                        player_blackjack_spanish.run()
+                    else :
+                        player_blackjack_spanish = PlayerSpanishBlackjack(SCREEN)
+                        player_blackjack_spanish.run()
                 if black_Jack3.checkForInput(MENU_MOUSE_POS):  # New logic for Blackjack Switch
-                    player_blackjack_switch = PlayerBlackjackSwitch(SCREEN)
-                    player_blackjack_switch.run()
+                    if observe_mode() :
+                        player_blackjack_switch = PlayerBlackjackSwitch(SCREEN)
+                        player_blackjack_switch.run()
+                    else :
+                        player_blackjack_switch = PlayerBlackjackSwitch(SCREEN)
+                        player_blackjack_switch.run()
                 if black_Jack4.checkForInput(MENU_MOUSE_POS):  # New logic for Blackjack Switch
-                    player_blackjack_european = PlayerEBlackjack(SCREEN)
-                    player_blackjack_european.run()
+                    if observe_mode() :
+                        player_blackjack_european = PlayerEBlackjack(SCREEN)
+                        player_blackjack_european.run()
+                    else : 
+                        player_blackjack_european = PlayerEBlackjack(SCREEN)
+                        player_blackjack_european.run()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
 
         pygame.display.update()
+
+
+# Function returns true if the player will play in Observer mode, watching the AI play for them.
+def observe_mode():
+    while True:
+        PLAY_MOUSE_POS = pygame.mouse.get_pos()
+
+        SCREEN.fill("black")
+
+        WATCH_BACK = Button(image=None, pos=(640, 260), 
+                            text_input="WATCH BLACKJACK", font=get_font(75), base_color="White", hovering_color="Green")
+
+        PLAY_BACK = Button(image=None, pos=(640, 460), 
+                            text_input="PLAY BLACKJACK", font=get_font(75), base_color="White", hovering_color="Green")
+
+        PLAY_BACK.changeColor(PLAY_MOUSE_POS)
+        PLAY_BACK.update(SCREEN)
+        WATCH_BACK.changeColor(PLAY_MOUSE_POS)
+        WATCH_BACK.update(SCREEN)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if PLAY_BACK.checkForInput(PLAY_MOUSE_POS):
+                    return False
+                if WATCH_BACK.checkForInput(PLAY_MOUSE_POS):
+                    return True
+
+
+        pygame.display.update()
+
 
 main_menu()
