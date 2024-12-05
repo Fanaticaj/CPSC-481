@@ -6,10 +6,12 @@ from player.player_game1 import PlayerBlackjack
 from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table, get_state
 import pygame
 logging.basicConfig(level=logging.INFO)
-
+import numpy as np
+import matplotlib.pyplot as plt
 pygame.init()
 screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
 player_blackjack = PlayerBlackjack(observer_mode=False, screen=None)
+
 # Training parameters
 episodes = 1000000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
@@ -23,8 +25,77 @@ action_stats = {
     "Split": {"wins": 0, "losses": 0, "draws": 0},
 }
 
+def plot_evaluation_results(evaluation_results):
+    episodes_list, mean_rewards, variances = zip(*evaluation_results)
+    plt.figure(figsize=(10, 6))
+    plt.plot(episodes_list, mean_rewards, label="Mean Reward")
+    plt.fill_between(
+        episodes_list,
+        np.array(mean_rewards) - np.array(variances),
+        np.array(mean_rewards) + np.array(variances),
+        color="blue", alpha=0.2, label="Variance"
+    )
+    plt.xlabel("Episodes")
+    plt.ylabel("Reward")
+    plt.title("Policy Performance Over Time")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
 # Dealer and player bust rates
 dealer_busts, player_busts = 0, 0
+    
+def evaluate_policy(q_table, game_class, num_trials=100000, discount_factor=0.95, max_steps=100):
+    """Evaluate the current policy by simulating multiple games."""
+    cumulative_rewards = []
+    player_blackjack = PlayerBlackjack(observer_mode=False)
+    game = player_blackjack.game
+    for _ in range(num_trials):
+        game.new_game()  # Start a new game
+
+        state = get_state(game.player_hand, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
+        total_reward = 0
+        done = False
+        steps = 0
+        reward = 0
+        while not done and steps < max_steps:
+            # Choose the best action from the Q-table
+            if state in q_table:
+                action = max(q_table[state], key=q_table[state].get)  # Greedy action
+            else:
+                action = "Stand"  # Default action for unseen states
+
+            # Perform the action
+            if action == "Hit":
+                result = game.hit(game.player_hand)
+                reward = -1 if result["bust"] else 0
+                done = result["bust"]
+            elif action == "Stand":
+                result = game.stand(game.player_hand)
+                reward = 1 if "Player Wins" in result else -1 if "Dealer Wins" in result else 0
+                done = True
+            elif action == "Double" and game.can_double_down(game.player_hand):
+                result = game.double(game.player_hand, 10)
+                reward = -1 if result["bust"] else 1
+                done = result["bust"]
+            elif action == "Split" and game.can_split(game.player_hand):
+                result = game.split(game.player_hand, 10)
+                reward = 0
+                done = not result["success"]
+
+            # Compute discounted reward
+            total_reward += (discount_factor ** steps) * reward
+            steps += 1
+
+            # Update state
+            if not done:
+                state = get_state(game.player_hand, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
+
+        cumulative_rewards.append(total_reward)
+
+    return cumulative_rewards
+
+evaluation_results = []  # To store evaluation metrics
 
 # Training loop
 for episode in range(episodes):
@@ -330,13 +401,31 @@ for episode in range(episodes):
             update_q_value(initial_state, "Split", average_reward, None)
             logging.info(f"Split completed. Initial State: {initial_state}, Average Reward: {average_reward}")
             done = True
+    if episode > 0 and episode % print_interval == 0:
+        print(f"Evaluating policy at episode {episode}...")
+        cumulative_rewards = evaluate_policy(q_table, PlayerBlackjack, num_trials=100)
+        mean_reward = np.mean(cumulative_rewards)
+        variance_reward = np.var(cumulative_rewards)
+        evaluation_results.append((episode, mean_reward, variance_reward))
 
-
+        print(f"Mean Cumulative Reward: {mean_reward:.2f}")
+        print(f"Reward Variance: {variance_reward:.2f}")
     # End the main loop for this episode after processing both hands
     done = True
+# Final evaluation after training
+print("\nPerforming final policy evaluation...")
+final_cumulative_rewards = evaluate_policy(q_table, PlayerBlackjack, num_trials=1000)
+final_mean_reward = np.mean(final_cumulative_rewards)
+final_variance_reward = np.var(final_cumulative_rewards)
 
+print("\nFinal Policy Evaluation Results:")
+print(f"Mean Cumulative Reward: {final_mean_reward:.2f}")
+print(f"Reward Variance: {final_variance_reward:.2f}")
 
-    
+# Save evaluation results
+np.save("evaluation_results.npy", evaluation_results)
+# Plot reward trends
+plot_evaluation_results(evaluation_results)   
 # Final summary
 total_games = wins + losses + draws
 print("Training completed. Final Results:")
