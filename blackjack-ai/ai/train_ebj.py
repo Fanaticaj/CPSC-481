@@ -1,15 +1,16 @@
 # train.py for normal blackjack rules.
 import logging
 import random
-from .q_table_manager import save_q_table_json
-from player.player_game1 import PlayerBlackjack  
-from .basic_strategy import initialize_state_action, choose_action, update_q_value, q_table, get_state
+from .q_table_european_manager import save_eblackjack_q_table_json
+from player.player_game4 import PlayerEBlackjack  
+from .basic_strategy_european import initialize_state_action, choose_action, update_q_value, q_table, get_state
 import pygame
 logging.basicConfig(level=logging.INFO)
 
 pygame.init()
 screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
-player_blackjack = PlayerBlackjack(observer_mode=False, screen=None)
+player_blackjack = PlayerEBlackjack(observer_mode=False, screen=None)
+
 # Training parameters
 episodes = 1000000  # Number of episodes to train
 print_interval = 10000  # Print progress every 10,000 episodes
@@ -29,14 +30,13 @@ dealer_busts, player_busts = 0, 0
 # Training loop
 for episode in range(episodes):
     # Initialize a new game instance
-    player_blackjack = PlayerBlackjack(observer_mode=False)  
+    player_blackjack = PlayerEBlackjack(observer_mode=False)  
     game = player_blackjack.game
 
     # Deal initial cards to player and dealer
     game.deal_card(game.player_hand)
     game.deal_card(game.dealer_hand)
     game.deal_card(game.player_hand)
-    game.deal_card(game.dealer_hand)
     logging.info(f"Player's initial hand: {game.player_hand}, Total: {game.hand_value(game.player_hand)}")
 
     # Initial state
@@ -89,11 +89,14 @@ for episode in range(episodes):
         # Default available actions
         available_actions = ["Hit", "Stand"]
 
-        # Add "Double" and "Split" if conditions are met
-        if len(game.player_hand) == 2:  # Only allow these actions with exactly two cards
+        # Add "Double" if allowed in European Blackjack
+        if len(game.player_hand) == 2 and game.can_double_down(game.player_hand):
             available_actions.append("Double")
-            if game.can_split(game.player_hand):
-                available_actions.append("Split")
+
+        # Add "Split" if allowed in European Blackjack
+        if len(game.player_hand) == 2 and game.can_split(game.player_hand) and len(game.split_hands) == 0:
+            available_actions.append("Split")
+        
 
         # Choose an action
         action = choose_action(state, game.player_hand, available_actions)
@@ -360,5 +363,5 @@ for action, stats in action_stats.items():
     print(f"  - {action}: Success Rate: {success_rate:.2%}")
 
 # Save Q-table to file
-save_q_table_json(q_table)
+save_eblackjack_q_table_json(q_table)
 
