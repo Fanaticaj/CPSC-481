@@ -2,8 +2,8 @@ import pygame
 import logging
 from games.game1 import Blackjack
 from ai.q_table_manager import load_q_table_json
-import random
 from ai.basic_strategy import choose_action
+
 class PlayerBlackjack:
     def __init__(self, observer_mode, screen=None, q_table=None):
         self.observer_mode = observer_mode

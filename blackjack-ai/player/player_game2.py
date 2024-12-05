@@ -6,7 +6,7 @@ from ai.basic_strategy_spanishbj import choose_action
 import random
 
 class PlayerSpanishBlackjack:
-    def __init__(self, screen=None, q_table=None):
+    def __init__(self, screen=None, q_table=load_q_table_spanish_json()):
         self.screen = screen
         self.game = SpanishBlackjack()
         self.show_hand = False
@@ -19,40 +19,7 @@ class PlayerSpanishBlackjack:
         else:
             self.font = None  # No font needed in headless mode
 
-    def get_ai_action(self, state):
-        """Retrieve the best action from the Q-table for the current state."""
-        if state in self.q_table:
-            action_values = self.q_table[state]
-        
-            # Exclude "Double" if the player has more than two cards
-            if len(self.game.player_hand) > 2 and "Double" in action_values:
-                action_values = {k: v for k, v in action_values.items() if k != "Double"}
-        
-            # Exclude "Split" if the player's hand is not a pair
-            if not self.is_pair(self.game.player_hand) and "Split" in action_values:
-                action_values = {k: v for k, v in action_values.items() if k != "Split"}
-        
-            # Get the action with the highest value
-            best_action = max(action_values, key=action_values.get)
-        
-            # Log state details and AI recommendation only once per state
-            if not hasattr(self, "logged_states"):
-                self.logged_states = set()
-            if state not in self.logged_states:
-                print(f"Current State: {state}")
-                print(f"Action Values: {action_values}")
-                print(f"AI says to {best_action}")
-                self.logged_states.add(state)
-            return best_action
-        else:
-            # Log missing state details only once
-            if not hasattr(self, "logged_states"):
-                self.logged_states = set()
-            if state not in self.logged_states:
-                print(f"State not found in Q-table. Defaulting to 'Stand'. Current State: {state}")
-                self.logged_states.add(state)
-            return "Stand"  # Default action if the state is not in the Q-table
-
+    
     def run(self):
         self.game.new_game()
         running = True
@@ -66,6 +33,7 @@ class PlayerSpanishBlackjack:
             )
             if ai_action == None:
                 ai_action = self.get_ai_action(state)
+                print("AI ACTION RETURNED: {ai_action}")
 
             if self.screen:
                 self.display_game_state(ai_action)
@@ -110,7 +78,7 @@ class PlayerSpanishBlackjack:
         else:
             # In headless mode, return random or policy-based actions
             return "Hit" if random.random() < 0.5 else "Stand"  # Example: random action for testing
-        
+
     def get_ai_action(self, state):
         """Retrieve the best action from the Q-table for the current state."""
         if state in self.q_table:
@@ -144,7 +112,7 @@ class PlayerSpanishBlackjack:
                 print(f"State not found in Q-table. Defaulting to 'Stand'. Current State: {state}")
                 self.logged_states.add(state)
             return "Stand"  # Default action if the state is not in the Q-table
-
+    
     def display_game_state(self, ai_action=None):
         """Display the player's and dealer's hand values on screen."""
         player_x_position = 400
@@ -154,11 +122,8 @@ class PlayerSpanishBlackjack:
         player_val = self.game.hand_value(self.game.player_hand)
         dealer_val = self.game.hand_value(self.game.dealer_hand[:1])  # Dealer shows only one card
 
-        player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
-        dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
-
+        # Fill background
         self.screen.fill((0, 100, 0))  # Green background
-        self.screen.blit(player_text, (50, 100))
 
         # Draw AI suggestion box
         ai_box_x = 800  # Position of the box on the right
@@ -167,46 +132,54 @@ class PlayerSpanishBlackjack:
         ai_box_height = 100
         pygame.draw.rect(self.screen, (200, 200, 200), (ai_box_x, ai_box_y, ai_box_width, ai_box_height), 0, 10)  # Box with rounded corners
 
+        # Display AI suggestion text in the box
         if ai_action:
             suggestion_text = self.font.render(f"AI Bot says: {ai_action}!", True, (0, 0, 0))
             suggestion_rect = suggestion_text.get_rect(center=(ai_box_x + ai_box_width // 2, ai_box_y + ai_box_height // 2))
             self.screen.blit(suggestion_text, suggestion_rect)
 
+        # Render player cards
         for i in self.game.player_hand:
             player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
             pygame.draw.rect(self.screen, 'white', [player_x_position, player_y_position, 100, 150], 0, 5)
             # Draw the text inside the rectangle
             top_left_text_position = (player_x_position + 10, player_y_position + 10)
-            bottom_right_text_position = (player_x_position + 70, player_y_position + 120)
+            bottom_right_text_position = (player_x_position + 75, player_y_position + 125)
             self.screen.blit(player_score, top_left_text_position)
             self.screen.blit(player_score, bottom_right_text_position)
-            # Move to the next position for the next card
             player_x_position += 110  # Add spacing between cards
-        
-         # DEALER HAND
-        if self.show_hand == True:
+
+        # Render dealer cards
+        if self.show_hand:
             for i in self.game.dealer_hand:
                 dealer_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
                 pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
-                # Draw the text inside the rectangle
                 top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
-                bottom_right_text_position = (dealer_x_position + 70, dealer_y_position + 120)
+                bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
                 self.screen.blit(dealer_score, top_left_text_position)
                 self.screen.blit(dealer_score, bottom_right_text_position)
                 dealer_x_position += 110  # Add spacing between cards
-                dealer_val = self.game.hand_value(self.game.dealer_hand)
-                dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
-                self.screen.blit(dealer_text, (50, 400))
-        else: # Show just the first card, before the player ends their turn
+
+            dealer_val = self.game.hand_value(self.game.dealer_hand)  # Dealer shows only one card
+        else:
             dealer_score = pygame.font.Font(None, 30).render(str(dealer_val), True, "black")
             pygame.draw.rect(self.screen, 'white', [dealer_x_position, dealer_y_position, 100, 150], 0, 5)
-            # Draw the text inside the rectangle
             top_left_text_position = (dealer_x_position + 10, dealer_y_position + 10)
-            bottom_right_text_position = (dealer_x_position + 70, dealer_y_position + 120)
+            bottom_right_text_position = (dealer_x_position + 75, dealer_y_position + 125)
             self.screen.blit(dealer_score, top_left_text_position)
             self.screen.blit(dealer_score, bottom_right_text_position)
-            dealer_x_position += 110  # Add spacing between cards
-            self.screen.blit(dealer_text, (50, 400))
+
+        # Render Player and Dealer Hand text
+        player_text = self.font.render(f"Player Hand: {player_val}", True, (255, 255, 255))
+        dealer_text = self.font.render(f"Dealer Hand: {dealer_val}", True, (255, 255, 255))
+        self.screen.blit(player_text, (50, 100))
+        self.screen.blit(dealer_text, (50, 400))
+
+    def is_pair(self, hand):
+        """Check if the player's hand contains a pair."""
+        if len(hand) != 2:  # A pair is only possible with exactly two cards
+            return False
+        return hand[0][0] == hand[1][0]  # Compare the ranks of the two cards
 
 
     def display_result(self):
