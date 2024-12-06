@@ -7,10 +7,12 @@ from ai.basic_strategy_spanishbj import choose_action
 import random
 
 class PlayerSpanishBlackjack:
-    def __init__(self, screen=None, q_table=load_q_table_spanish_json()):
+    def __init__(self, observer_mode, screen=None, q_table=None):
+        self.observer_mode = observer_mode
+        self.show_hand = False
         self.screen = screen
         self.game = SpanishBlackjack()
-        self.show_hand = False
+        
         # Load the Q-table for regular blackjack
         self.q_table = q_table if q_table else {}
 
@@ -19,14 +21,58 @@ class PlayerSpanishBlackjack:
             self.font = pygame.font.Font(None, 36)
         else:
             self.font = None  # No font needed in headless mode
+    
+    def is_pair(self, hand):
+        """Check if the player's hand contains a pair."""
+        if len(hand) != 2:  # A pair is only possible with exactly two cards
+            return False
+        return hand[0][0] == hand[1][0]  # Compare the ranks of the two cards
+    
+    def get_ai_action(self, state):
+        """Retrieve the best action from the Q-table for the current state."""
+        if state in self.q_table:
+            action_values = self.q_table[state]
+        
+            # Exclude "Double" if the player has more than two cards
+            if len(self.game.player_hand) > 2 and "Double" in action_values:
+                action_values = {k: v for k, v in action_values.items() if k != "Double"}
+        
+            # Exclude "Split" if the player's hand is not a pair
+            if not self.is_pair(self.game.player_hand) and "Split" in action_values:
+                action_values = {k: v for k, v in action_values.items() if k != "Split"}
+        
+            # Get the action with the highest value
+            best_action = max(action_values, key=action_values.get)
+        
+            # Log state details and AI recommendation only once per state
+            if not hasattr(self, "logged_states"):
+                self.logged_states = set()
+            if state not in self.logged_states:
+                print(f"Current State: {state}")
+                print(f"Action Values: {action_values}")
+                print(f"AI says to {best_action}")
+                self.logged_states.add(state)
+            return best_action
+        else:
+            # Log missing state details only once
+            if not hasattr(self, "logged_states"):
+                self.logged_states = set()
+            if state not in self.logged_states:
+                print(f"State not found in Q-table. Defaulting to 'Stand'. Current State: {state}")
+                self.logged_states.add(state)
+            return "Stand"  # Default action if the state is not in the Q-table
 
     def run(self):
         self.game.new_game()
+        print(self.game.player_hand)
+        print(f'Dealer: {self.game.dealer_hand}')
+        print(f'Observer Mode =', self.observer_mode)
         running = True
         ai_action = None
-
+        if self.screen: self.display_game_state()
         while running:
             # Get the current state
+            action = None
             state = (
                 self.game.hand_value(self.game.player_hand),
                 str(self.game.dealer_hand[0][0]),  # Dealer's visible card
@@ -40,51 +86,83 @@ class PlayerSpanishBlackjack:
             # Display the game state with the current AI action
             if self.screen:
                 self.display_game_state(ai_action)
-
+                pygame.display.flip()
                 # Handle Pygame events
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         running = False
+                    elif event.type == pygame.KEYDOWN and not self.observer_mode:
+                        action = self.get_key_action(event, state)
+            if self.observer_mode:
+                action = ai_action
 
-            # Handle player actions for hitting or standing
-            action = self.get_player_action()
+            if self.observer_mode: pygame.time.wait(self.ai_wait_interval)
             if action == "Hit":
+                ai_action = None
                 print("hit!")
                 self.game.deal_card(self.game.player_hand)
-                ai_action = None  # Reset AI action to recalculate next loop
-                pygame.time.wait(100)
                 if self.game.hand_value(self.game.player_hand) > 21:
                     running = False  # Player busts, end game
+            elif action == "Double":
+                ai_action = None
+                print("double!")
+                self.game.deal_card(self.game.player_hand)
+                self.show_hand = True
+                running = False  # End player's turn, proceed to dealer
             elif action == "Stand":
-                print("stand!")
+                ai_action = None
+                print("Stand!")
                 self.show_hand = True
                 running = False  # End player's turn, proceed to check winner
+            elif action == "Split" and self.game.can_split(self.game.player_hand):
+                ai_action = None
+                print("Split!")
+                split_hands = self.game.split_hand(self.game.player_hand)
+                self.play_split_hands(split_hands)
+                self.display_result()
+                running = False
 
-            # Let the dealer play their hand if the player is done
-            if not running and action == "Stand":
-                self.game.play_dealer_hand()
-
-            # Display game state if screen is available
-            if self.screen:
-                self.display_game_state(ai_action)
-                pygame.display.flip()
-
+        if self.show_hand: self.game.play_dealer_hand() # Deal the dealer's hand at the end
+                
         # Display result if screen is available
         if self.screen:
+            self.display_game_state()
+            pygame.display.flip()
+            if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
             self.display_result()
 
-    def get_player_action(self):
-        """Return 'Hit' or 'Stand' based on player input or policy."""
-        if self.screen:
+    def get_key_action(self, event, state):
+        """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
+        if self.screen and not self.observer_mode and event.type == pygame.KEYDOWN:
             # Handle interactive keys if screen is present
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_h]:
+            if event.key == pygame.K_h:
                 return "Hit"
-            elif keys[pygame.K_s]:
+            elif event.key == pygame.K_s:
                 return "Stand"
-        else:
-            # In headless mode, return random or policy-based actions
-            return "Hit" if random.random() < 0.5 else "Stand"  # Example: random action for testing
+            elif event.key == pygame.K_d:
+                return "Double"
+            elif event.key == pygame.K_p and self.game.can_split(self.game.player_hand):
+                return "Split"
+        
+    def play_split_hands(self, split_hands):
+        for hand in split_hands:
+            hand_running = True
+            while hand_running:
+                state = (
+                self.game.hand_value(hand),
+                self.game.dealer_hand[0],  # Dealer's visible card
+                self.game.has_usable_ace(hand)
+                )
+                action = self.get_player_action(state)
+                if action == "Hit":
+                    self.game.deal_card(hand)
+                    if self.game.is_bust(hand):
+                        hand_running = False
+                elif action == "Stand":
+                    hand_running = False
+                elif action == "Double":
+                    self.game.deal_card(hand)
+                    hand_running = False
 
     def display_game_state(self, ai_action=None):
         """Display the player's and dealer's hand values on screen."""
@@ -148,58 +226,12 @@ class PlayerSpanishBlackjack:
         self.screen.blit(player_text, (50, 100))
         self.screen.blit(dealer_text, (50, 400))
 
-    def get_ai_action(self, state):
-        """Retrieve the best action from the Q-table for the current state."""
-        if state in self.q_table:
-            action_values = self.q_table[state]
-        
-            # Exclude "Double" if the player has more than two cards
-            if len(self.game.player_hand) > 2 and "Double" in action_values:
-                action_values = {k: v for k, v in action_values.items() if k != "Double"}
-        
-            # Exclude "Split" if the player's hand is not a pair
-            if not self.is_pair(self.game.player_hand) and "Split" in action_values:
-                action_values = {k: v for k, v in action_values.items() if k != "Split"}
-        
-            # Get the action with the highest value
-            best_action = max(action_values, key=action_values.get)
-        
-            # Log state details and AI recommendation only once per state
-            if not hasattr(self, "logged_states"):
-                self.logged_states = set()
-            if state not in self.logged_states:
-                print(f"Current State: {state}")
-                print(f"Action Values: {action_values}")
-                print(f"AI says to {best_action}")
-                self.logged_states.add(state)
-            return best_action
-        else:
-            # Log missing state details only once
-            if not hasattr(self, "logged_states"):
-                self.logged_states = set()
-            if state not in self.logged_states:
-                print(f"State not found in Q-table. Defaulting to 'Stand'. Current State: {state}")
-                self.logged_states.add(state)
-            return "Stand"  # Default action if the state is not in the Q-table
-
-    def is_pair(self, hand):
-        """Check if the player's hand contains a pair."""
-        if len(hand) != 2:  # A pair is only possible with exactly two cards
-            return False
-        return hand[0][0] == hand[1][0]  # Compare the ranks of the two cards
-
 
     def display_result(self):
         """Display the game result on screen."""
         result = self.game.check_winner()
+        print(result)
         result_text = self.font.render(result, True, (255, 255, 255))
         self.screen.blit(result_text, (50, 300))
         pygame.display.flip()
         pygame.time.wait(3000)
-
-# Example usage:
-if __name__ == "__main__":
-    screen = pygame.display.set_mode((800, 600))
-    game = PlayerSpanishBlackjack(screen=screen)
-    game.run()
-    pygame.quit()
