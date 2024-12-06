@@ -49,17 +49,19 @@ class SpanishBlackjack:
         dealer_val = self.hand_value(self.dealer_hand)
 
         if player_val > 21:
-            return "Player Busts! Dealer Wins."
+            result =  "Player Busts! Dealer Wins."
         elif player_val == 21:
-            return "Player Wins! Blackjack!"
+            result = "Player Wins! Blackjack!"
         elif dealer_val > 21:
-            return "Dealer Busts! Player Wins."
+            result = "Dealer Busts! Player Wins."
         elif player_val == dealer_val:
-            return "It's a Tie!"
+            result = "It's a Tie!"
         elif player_val > dealer_val:
-            return "Player Wins!"
+            result = "Player Wins!"
         else:
-            return "Dealer Wins!"
+            result = "Dealer Wins!"
+        logging.info(f"Final Results -> Player: {player_val}, Dealer: {dealer_val}, Outcome: {result}")
+        return result
     
     def has_usable_ace(self, hand):
         """Check if the hand has a usable Ace (counts as 11 without busting)."""

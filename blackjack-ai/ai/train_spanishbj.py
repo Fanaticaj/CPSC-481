@@ -6,10 +6,11 @@ from player.player_game2 import PlayerSpanishBlackjack
 from .basic_strategy_spanishbj import initialize_state_action, choose_action, update_q_value, q_table, get_state
 import pygame
 logging.basicConfig(level=logging.INFO)
-
+import numpy as np
+import matplotlib.pyplot as plt
 pygame.init()
 screen = pygame.Surface((800, 600))  # Dummy screen for headless mode
-player_spanish_blackjack = PlayerSpanishBlackjack(screen)
+player_spanish_blackjack = PlayerSpanishBlackjack(observer_mode=False, screen=None)
 
 # Training parameters
 episodes = 1000000  # Number of episodes to train
@@ -24,16 +25,82 @@ action_stats = {
     "Split": {"wins": 0, "losses": 0, "draws": 0},
 }
 
+def plot_evaluation_results(evaluation_results):
+    episodes_list, mean_rewards, variances = zip(*evaluation_results)
+    plt.figure(figsize=(10, 6))
+    plt.plot(episodes_list, mean_rewards, label="Mean Reward")
+    plt.fill_between(
+        episodes_list,
+        np.array(mean_rewards) - np.array(variances),
+        np.array(mean_rewards) + np.array(variances),
+        color="blue", alpha=0.2, label="Variance"
+    )
+    plt.xlabel("Episodes")
+    plt.ylabel("Reward")
+    plt.title("Policy Performance Over Time")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
 # Dealer and player bust rates
 dealer_busts, player_busts = 0, 0
 
-episode_rewards = []
+def evaluate_policy(q_table, game_class, num_trials=100000, discount_factor=0.95, max_steps=100):
+    """Evaluate the current policy by simulating multiple games."""
+    cumulative_rewards = []
+    player_blackjack = PlayerSpanishBlackjack(observer_mode=False)
+    game = player_blackjack.game
+    for _ in range(num_trials):
+        game.new_game()  # Start a new game
+
+        state = get_state(game.player_hand, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
+        total_reward = 0
+        done = False
+        steps = 0
+        reward = 0
+        while not done and steps < max_steps:
+            # Choose the best action from the Q-table
+            if state in q_table:
+                action = max(q_table[state], key=q_table[state].get)  # Greedy action
+            else:
+                action = "Stand"  # Default action for unseen states
+
+            # Perform the action
+            if action == "Hit":
+                result = game.hit(game.player_hand)
+                reward = -1 if result["bust"] else 0
+                done = result["bust"]
+            elif action == "Stand":
+                result = game.stand(game.player_hand)
+                reward = 1 if "Player Wins" in result else -1 if "Dealer Wins" in result else 0
+                done = True
+            elif action == "Double" and game.can_double_down(game.player_hand):
+                result = game.double(game.player_hand, 10)
+                reward = -1 if result["bust"] else 1
+                done = result["bust"]
+            elif action == "Split" and game.can_split(game.player_hand):
+                result = game.split(game.player_hand, 10)
+                reward = 0
+                done = not result["success"]
+
+            # Compute discounted reward
+            total_reward += (discount_factor ** steps) * reward
+            steps += 1
+
+            # Update state
+            if not done:
+                state = get_state(game.player_hand, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
+
+        cumulative_rewards.append(total_reward)
+
+    return cumulative_rewards
+
+evaluation_results = []  # To store evaluation metrics
 
 # Training loop
 for episode in range(episodes):
-    episode_reward = 0
     # Create a new instance of the Spanish Blackjack game in non-graphical mode
-    player_spanish_blackjack = PlayerSpanishBlackjack()
+    player_spanish_blackjack = PlayerSpanishBlackjack(observer_mode=False)
     game = player_spanish_blackjack.game
     
     game.deal_card(game.player_hand)
@@ -57,7 +124,6 @@ for episode in range(episodes):
             wins += 1
             action_stats["Stand"]["wins"] += 1
             logging.info("Player has a Natural Blackjack! Player Wins.")
-        episode_reward += reward
         state = (player_total, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
         initialize_state_action(state)  # Fix: Ensure state is in the Q-table
         update_q_value(state, "Stand", reward, None)
@@ -67,7 +133,6 @@ for episode in range(episodes):
         reward = -1  # Dealer Wins
         losses += 1
         action_stats["Stand"]["losses"] += 1
-        episode_reward += reward
         logging.info("Dealer has a Natural Blackjack! Dealer Wins.")
         state = (player_total, game.dealer_hand[0], game.has_usable_ace(game.player_hand))
         initialize_state_action(state)  # Fix: Ensure state is in the Q-table
@@ -126,7 +191,6 @@ for episode in range(episodes):
                 else:
                     hand_improvement = player_total - state[0]
                 reward = 0.1 * hand_improvement  # Reward for improving hand without busting
-                episode_reward += reward
                 update_q_value(state, action, reward, next_state)
                 state = next_state
             else:
@@ -134,7 +198,6 @@ for episode in range(episodes):
                 reward = -1  # Loss due to bust
                 losses += 1
                 action_stats["Hit"]["losses"] += 1
-                episode_reward += reward
                 done = True
                 update_q_value(state, action, reward, None)  # No next state because the episode ends
                 logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: None")
@@ -152,7 +215,6 @@ for episode in range(episodes):
             else:
                 draws += 1
                 action_stats["Stand"]["draws"] += 1
-            episode_reward += reward
             done = True
             update_q_value(state, action, reward, None)
             logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: None")
@@ -172,7 +234,6 @@ for episode in range(episodes):
                 losses += 1
                 action_stats["Double"]["losses"] += 1
                 player_busts += 1
-                episode_reward += reward
                 done = True
             else:
                 dealer_total = game.play_dealer_hand()
@@ -181,22 +242,18 @@ for episode in range(episodes):
                     reward = 1
                     wins += 1
                     action_stats["Double"]["wins"] += 1
-                    episode_reward += reward
                 elif player_total > dealer_total:
                     reward = 1
                     wins += 1
                     action_stats["Double"]["wins"] += 1
-                    episode_reward += reward
                 elif player_total < dealer_total:
                     reward = -1
                     losses += 1
                     action_stats["Double"]["losses"] += 1
-                    episode_reward += reward
                 else:
                     reward = 0
                     draws += 1
                     action_stats["Double"]["draws"] += 1
-                    episode_reward += reward
                 done = True
 
             update_q_value(state, action, reward, next_state)
@@ -208,7 +265,6 @@ for episode in range(episodes):
                 logging.warning("Invalid split action. Counting as a loss.")
                 reward = -1
                 losses += 1
-                episode_reward += reward
                 update_q_value(state, action, reward, None)
                 logging.info(f"State: {state}, Action: {action}, Reward: {reward}, Next State: None")
                 done = True
@@ -221,114 +277,95 @@ for episode in range(episodes):
                 logging.warning("Split action failed.")
                 reward = -1  # Treat failed splits as losses
                 losses += 1
-                episode_reward += reward
                 update_q_value(state, action, reward, None)
                 done = True
                 continue
 
             hand1, hand2 = result["hand1"], result["hand2"]
 
-            initial_state = state
-
-            hand1_reward = 0
-            hand2_reward = 0
-
-            hand1_state = get_state(hand1, game.dealer_hand[0], game.has_usable_ace(hand1))
-            hand2_state = get_state(hand2, game.dealer_hand[0], game.has_usable_ace(hand2))
-            logging.info(f"Initial State for Hand 1: {hand1_state}")
-            logging.info(f"Initial State for Hand 2: {hand2_state}")
-
-            for split_hand, reward_var in [(hand1, "hand1_reward"), (hand2, "hand2_reward")]:
+            # Process each hand independently
+            total_reward = 0
+            for split_hand in [hand1, hand2]:
                 split_done = False
                 while not split_done:
-                    # Get the state of the current split hand
+                    # Update state for the current split hand
                     split_total = game.hand_value(split_hand)
                     split_usable_ace = game.has_usable_ace(split_hand)
                     split_state = get_state(split_hand, game.dealer_hand[0], split_usable_ace)
                     initialize_state_action(split_state)
-
-                    # Determine available actions for the split hand
+                    
+                    # Determine available actions
                     split_available_actions = ["Hit", "Stand"]
                     if len(split_hand) == 2:
                         split_available_actions.append("Double")
                         if game.can_split(split_hand):
                             split_available_actions.append("Split")
 
-                    # Choose an action for the split hand
-                    split_action = choose_action(split_state, split_hand, split_available_actions)
+                    # Choose an action for the current split hand
+                    split_action = choose_action(split_state, split_hand, available_actions)
 
-                    # Execute the chosen action
+                    # Execute the action
                     if split_action == "Hit":
                         split_result = game.hit(split_hand)
                         if split_result["bust"]:
-                            reward = -1
+                            reward = -1  # Bust means loss
                             losses += 1
                             action_stats["Split"]["losses"] += 1
-                            result["win"] = False  # Update split result
                             split_done = True
                         else:
                             reward = 0
-                        episode_reward += reward
-                        update_q_value(split_state, split_action, reward, None)
-                        logging.info(f"State: {split_state}, Action: {split_action}, Reward: {reward}, Next State: None")
+                            next_state = get_state(split_hand, game.dealer_hand[0], game.has_usable_ace(split_hand))
+                            update_q_value(split_state, split_action, reward, next_state)
+                            split_state = next_state
 
                     elif split_action == "Stand":
                         dealer_total = game.play_dealer_hand()
                         if dealer_total > 21:
-                            reward = 1
+                            dealer_busts += 1
+                            reward = 1  # Dealer bust
                             wins += 1
                             action_stats["Split"]["wins"] += 1
-                            result["win"] = True  # Update split result
                         elif split_total > dealer_total:
-                            reward = 1
+                            reward = 1  # Player wins
                             wins += 1
-                            result["win"] = True  # Update split result
                             action_stats["Split"]["wins"] += 1
                         elif split_total < dealer_total:
-                            reward = -1
+                            reward = -1  # Dealer wins
                             losses += 1
                             action_stats["Split"]["losses"] += 1
-                            result["win"] = False
                         else:
-                            reward = 0
+                            reward = 0  # Draw
                             draws += 1
                             action_stats["Split"]["draws"] += 1
-                            result["win"] = None  # Draw
                         split_done = True
-                        episode_reward += reward
                         update_q_value(split_state, split_action, reward, None)
-                        logging.info(f"State: {split_state}, Action: {split_action}, Reward: {reward}, Next State: None")
 
                     elif split_action == "Double":
-                        split_result = game.double(split_hand, 10)
+                        split_result = game.double(split_hand, 10)  # Assuming bet of 10
                         if split_result["bust"]:
-                            reward = -1
+                            reward = -1  # Bust
                             losses += 1
                             action_stats["Double"]["losses"] += 1
-                            result["win"] = False
+                            split_done = True
                         else:
                             dealer_total = game.play_dealer_hand()
                             if dealer_total > 21:
+                                dealer_busts += 1
                                 reward = 1
                                 wins += 1
                                 action_stats["Double"]["wins"] += 1
-                                result["win"] = True
                             elif split_total > dealer_total:
                                 reward = 1
                                 wins += 1
                                 action_stats["Double"]["wins"] += 1
-                                result["win"] = True
                             elif split_total < dealer_total:
                                 reward = -1
                                 losses += 1
                                 action_stats["Double"]["losses"] += 1
-                                result["win"] = False
                             else:
                                 reward = 0
                                 draws += 1
                                 action_stats["Double"]["draws"] += 1
-                                result["win"] = None
-                        episode_reward += reward
                         split_done = True
                         update_q_value(split_state, split_action, reward, None)
                         logging.info(f"State: {split_state}, Action: {split_action}, Reward: {reward}, Next State: None")
@@ -336,22 +373,40 @@ for episode in range(episodes):
                     hand1_reward = reward
                 elif split_hand == hand2:
                     hand2_reward = reward
-                
             # Calculate total and average rewards for the split
             total_reward = hand1_reward + hand2_reward
             average_reward = total_reward / 2
-            episode_reward += average_reward
-            # Update Q-value for the initial state
-            update_q_value(initial_state, "Split", average_reward, None)
-            logging.info(f"Split completed. Initial State: {initial_state}, Average Reward: {average_reward}")
+
+            update_q_value(state, "Split", average_reward, None)
+            logging.info(f"Split completed. Initial State: {state}, Average Reward: {average_reward}")
             done = True
 
-        # End the main loop for this episode after processing both hands
-        episode_rewards.append(episode_reward)
-        done = True
-        
+    if episode > 0 and episode % print_interval == 0:
+        print(f"Evaluating policy at episode {episode}...")
+        cumulative_rewards = evaluate_policy(q_table, PlayerSpanishBlackjack, num_trials=100)
+        mean_reward = np.mean(cumulative_rewards)
+        variance_reward = np.var(cumulative_rewards)
+        evaluation_results.append((episode, mean_reward, variance_reward))
+
+        print(f"Mean Cumulative Reward: {mean_reward:.2f}")
+        print(f"Reward Variance: {variance_reward:.2f}")
+    # End the main loop for this episode after processing both hands
+    done = True
+# Final evaluation after training
+print("\nPerforming final policy evaluation...")
+final_cumulative_rewards = evaluate_policy(q_table, PlayerSpanishBlackjack, num_trials=1000)
+final_mean_reward = np.mean(final_cumulative_rewards)
+final_variance_reward = np.var(final_cumulative_rewards)
+
+print("\nFinal Policy Evaluation Results:")
+print(f"Mean Cumulative Reward: {final_mean_reward:.2f}")
+print(f"Reward Variance: {final_variance_reward:.2f}")
+
+# Save evaluation results
+np.save("evaluation_results_spanish.npy", evaluation_results)
+# Plot reward trends
+plot_evaluation_results(evaluation_results)   
 # Final summary
-avg_reward = sum(episode_rewards) / episodes
 total_games = wins + losses + draws
 print("Training completed. Final Results:")
 print("-----------------------------------")
@@ -372,8 +427,4 @@ for action, stats in action_stats.items():
     total = stats["wins"] + stats["losses"] + stats["draws"]
     success_rate = stats["wins"] / total if total > 0 else 0
     print(f"  - {action}: Success Rate: {success_rate:.2%}")
-
-print(f"Average Reward Across All Episodes: {avg_reward:.2f}")
-
-print("Training completed. Q-table has been updated.")
 save_q_table_spanish_json(q_table)

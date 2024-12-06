@@ -401,6 +401,9 @@ for episode in range(episodes):
             update_q_value(initial_state, "Split", average_reward, None)
             logging.info(f"Split completed. Initial State: {initial_state}, Average Reward: {average_reward}")
             done = True
+            
+            
+            
     if episode > 0 and episode % print_interval == 0:
         print(f"Evaluating policy at episode {episode}...")
         cumulative_rewards = evaluate_policy(q_table, PlayerBlackjack, num_trials=100)

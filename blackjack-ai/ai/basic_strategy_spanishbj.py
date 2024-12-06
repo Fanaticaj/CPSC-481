@@ -1,6 +1,6 @@
 import random
 import logging
-alpha = 0.05 # Learning rate
+alpha = 0.03 # Learning rate
 gamma = 0.95 # discount factor
 epsilon = 0.5 # exploration rate
 min_epsilon = 0.01 # Min exploration rate
@@ -101,9 +101,9 @@ def initialize_state_action(state):
     Initialize Q-values for a given state. Handles pairs and regular states.
     """
     if state not in q_table:
-        if isinstance(state[0], str):
+        if isinstance(state[0], str):  # Pair state (e.g., '8,8')
             q_table[state] = {'Split': 0.0, 'Hit': 0.0, 'Stand': 0.0, 'Double': 0.0}
-        else:
+        else:  # Regular state
             q_table[state] = {'Hit': 0.0, 'Stand': 0.0, 'Double': 0.0, 'Split': 0.0}
         logging.info(f"Initialized state in Q-table: {state}")
 
@@ -120,44 +120,37 @@ def choose_action(state, hand, available_actions):
     Returns:
         str: The chosen action.
     """
-    is_exploratory = False  # Default to exploitation
+    
 
     # Exploration: With probability epsilon, choose a random action
     if random.uniform(0, 1) < epsilon:
-        action = random.choice(available_actions)
-        is_exploratory = True  # Set to exploratory
-    else:
-        # Exploitation: Choose the best action based on Q-values or basic strategy
-        if isinstance(state[0], str):  # Splittable pair
-            pair, dealer_card = state
-            if state in q_table:
-                q_values = q_table[state]
-                action = max(q_values, key=q_values.get)
-            else:
-                # Default to basic strategy
-                strategy_action = basic_strategy_spanish_q_table.get((pair, dealer_card), None)
-                action = {"H": "Hit", "S": "Stand", "D": "Double", "Y": "Split", "N": "Stand"}.get(strategy_action, "Stand")
+        return random.choice(available_actions)
+        
+
+    # Exploitation: Choose the best action based on Q-values or basic strategy
+    if isinstance(state[0], str):  # Splittable pair
+        pair, dealer_card = state
+        if state in q_table:
+            q_values = q_table[state]
+            best_action = max(q_values, key=q_values.get)
         else:
-            # Non-pair states
-            if state in q_table:
-                q_values = q_table[state]
-                action = max(q_values, key=q_values.get)
-            else:
-                # Default to basic strategy
-                player_total, dealer_card, usable_ace = state
-                strategy_action = basic_strategy_spanish_q_table.get((player_total, dealer_card), None)
-                action = {"H": "Hit", "S": "Stand", "D": "Double"}.get(strategy_action, "Stand")
-
-    # Ensure the chosen action is in the list of available actions
-    action = action if action in available_actions else "Stand"
-
-    # Log exploration or exploitation
-    if is_exploratory:
-        logging.info(f"Exploration: State: {state}, Chosen Action: {action}")
+            # Default to basic strategy
+            strategy_action = basic_strategy_spanish_q_table.get((pair, dealer_card), None)
+            best_action = {"H": "Hit", "S": "Stand", "D": "Double", "Y": "Split", "N": "Stand"}.get(strategy_action, "Stand")
     else:
-        logging.info(f"Exploitation: State: {state}, Chosen Action: {action}")
+        # Non-pair states
+        if state in q_table:
+            q_values = q_table[state]
+            best_action = max(q_values, key=q_values.get)
+        else:
+            # Default to basic strategy
+            player_total, dealer_card, usable_ace = state
+            strategy_action = basic_strategy_spanish_q_table.get((player_total, dealer_card), None)
+            best_action = {"H": "Hit", "S": "Stand", "D": "Double"}.get(strategy_action, "Stand")
 
-    return action
+     
+    # Ensure the chosen action is in the list of available actions
+    return best_action if best_action in available_actions else "Stand"
 
 
 
