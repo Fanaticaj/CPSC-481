@@ -9,6 +9,8 @@ class PlayerBlackjackSwitch:
         self.switch_pressed = False  # To prevent continuous switching
         self.double_done_hand1 = False  # Track if Hand 1 has doubled
         self.double_done_hand2 = False  # Track if Hand 2 has doubled
+        self.button_restart = pygame.Rect(250, 600, 150, 50)
+        self.button_quit = pygame.Rect(250, 660, 150, 50)
         if self.screen:
             pygame.font.init()  # Initialize fonts if using graphics
             self.font = pygame.font.Font(None, 36)
@@ -63,6 +65,30 @@ class PlayerBlackjackSwitch:
         # Display result
         if self.screen:
             self.display_full_result()
+
+        # Draw restart button
+        pygame.draw.rect(self.screen, (0, 100, 255), self.button_restart, 0, 5)
+        text_surface = self.font.render("Restart", True, "white")
+        self.screen.blit(text_surface, (self.button_restart.x+40, self.button_restart.y+10))
+        # Draw Quit Button
+        pygame.draw.rect(self.screen, ((0, 100, 255)), self.button_quit, 0, 5)
+        text_surface = self.font.render("Quit", True, "white")
+        self.screen.blit(text_surface, (self.button_quit.x+50, self.button_quit.y+10))
+        # Display result if screen is available
+        pygame.display.flip()
+        running = True
+        while running:
+            if self.screen:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if event.button == 1:  # Left mouse button
+                            if self.button_restart.collidepoint(event.pos):
+                                self.show_hand = False
+                                self.run()
+                            elif self.button_quit.collidepoint(event.pos):
+                                running = False
 
     def get_player_action(self):
         """Return 'Switch', 'Hit Hand 1', 'Hit Hand 2', 'Double Hand 1', 'Double Hand 2', or 'Stand' based on player input or policy."""
@@ -215,4 +241,3 @@ class PlayerBlackjackSwitch:
             y_offset += 150
 
         pygame.display.flip()
-        pygame.time.wait(5000)
