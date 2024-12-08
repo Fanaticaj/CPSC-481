@@ -113,7 +113,7 @@ def main_menu():
                         player_blackjack.run() 
                 if black_Jack2.checkForInput(MENU_MOUSE_POS):
                     if observe_mode() :
-                        player_blackjack_spanish = PlayerSpanishBlackjack(False, SCREEN, q_table=q_table)
+                        player_blackjack_spanish = PlayerSpanishBlackjack(True, SCREEN, q_table=q_table)
                         player_blackjack_spanish.run()
                     else :
                         player_blackjack_spanish = PlayerSpanishBlackjack(False, SCREEN, q_table=  q_table)
