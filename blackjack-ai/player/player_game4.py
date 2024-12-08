@@ -10,6 +10,8 @@ class PlayerEBlackjack:
         self.show_hand = False
         self.ai_wait_interval = 1000
         self.screen = screen
+        self.button_restart = pygame.Rect(650, 600, 150, 50)
+        self.button_quit = pygame.Rect(650, 660, 150, 50)
         self.game = EBlackjack()
         
         # Load the Q-table for european blackjack
@@ -69,6 +71,7 @@ class PlayerEBlackjack:
         print(f'Observer Mode =', self.observer_mode)
         running = True
         ai_action = None
+        if self.screen: self.display_game_state()
         while running:
             action = None
             state = (
@@ -128,6 +131,30 @@ class PlayerEBlackjack:
             pygame.display.flip()
             if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
             self.display_result()
+        # Draw restart button
+        pygame.draw.rect(self.screen, (0, 100, 255), self.button_restart, 0, 5)
+        text_surface = self.font.render("Restart", True, "white")
+        self.screen.blit(text_surface, (self.button_restart.x+40, self.button_restart.y+10))
+        # Draw Quit Button
+        pygame.draw.rect(self.screen, ((0, 100, 255)), self.button_quit, 0, 5)
+        text_surface = self.font.render("Quit", True, "white")
+        self.screen.blit(text_surface, (self.button_quit.x+50, self.button_quit.y+10))
+
+        # Display result if screen is available
+        pygame.display.flip()
+        running = True
+        while running:
+            if self.screen:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if event.button == 1:  # Left mouse button
+                            if self.button_restart.collidepoint(event.pos):
+                                self.show_hand = False
+                                self.run()
+                            elif self.button_quit.collidepoint(event.pos):
+                                running = False
 
     def get_key_action(self, event, state):
         """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
@@ -232,4 +259,4 @@ class PlayerEBlackjack:
         result_text = self.font.render(result, True, (255, 255, 255))
         self.screen.blit(result_text, (50, 300))
         pygame.display.flip()
-        pygame.time.wait(3000)
+        # pygame.time.wait(3000)
