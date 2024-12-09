@@ -75,7 +75,7 @@ class PlayerBlackjack:
         print(f'Observer Mode =', self.observer_mode)
         running = True
         ai_action = None
-        if self.screen: self.display_game_state()
+        if self.screen: self.display_game_state(self.game.player_hand)
         while running:
             action = None
             state = (
@@ -88,7 +88,7 @@ class PlayerBlackjack:
 
             if self.screen:
                 # Display the current game state and AI suggestion
-                self.display_game_state(ai_action)  # Pass AI suggestion to the display method
+                self.display_game_state(self.game.player_hand, ai_action)  # Pass AI suggestion to the display method
                 pygame.display.flip()
                 # Only handle Pygame events if a screen is present
                 for event in pygame.event.get():
@@ -128,7 +128,7 @@ class PlayerBlackjack:
                 running = False
 
         if self.show_hand: self.game.play_dealer_hand() # Deal the dealer's hand at the end
-        self.display_game_state()
+        self.display_game_state(self.game.player_hand)
         if self.observer_mode: pygame.time.wait(self.ai_wait_interval) # Delay for AI before results are displayed
         self.display_result()
         
@@ -170,32 +170,59 @@ class PlayerBlackjack:
                 return "Split"
         
     def play_split_hands(self, split_hands):
+        x = 0
         for hand in split_hands:
+            x += 1
+            print("Playing hand ", x)
             hand_running = True
+            ai_action = None
+            action = None
             while hand_running:
+                action = None
                 state = (
                 self.game.hand_value(hand),
                 self.game.dealer_hand[0],  # Dealer's visible card
                 self.game.has_usable_ace(hand)
                 )
-                action = self.get_player_action(state)
+
+                if ai_action == None:
+                    ai_action = self.get_ai_action(state)
+
+                if self.screen:
+                    # Display the current game state and AI suggestion
+                    self.display_game_state(hand, ai_action)  # Pass AI suggestion to the display method
+                    pygame.display.flip()
+                    # Only handle Pygame events if a screen is present
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            running = False
+                        elif event.type == pygame.KEYDOWN and not self.observer_mode:
+                            action = self.get_key_action(event, state)
+
+                if self.observer_mode:
+                    action = ai_action
+                    pygame.time.wait(self.ai_wait_interval)
+
                 if action == "Hit":
                     self.game.deal_card(hand)
                     if self.game.is_bust(hand):
                         hand_running = False
+                        self.show_hand = True
                 elif action == "Stand":
                     hand_running = False
+                    self.show_hand = True
                 elif action == "Double":
                     self.game.deal_card(hand)
                     hand_running = False
+                    self.show_hand = True
 
-    def display_game_state(self, ai_action=None):
+    def display_game_state(self, player_hand, ai_action=None):
         """Display the player's and dealer's hand values on screen."""
         player_x_position = 400
         player_y_position = 100
         dealer_x_position = 400
         dealer_y_position = 400
-        player_val = self.game.hand_value(self.game.player_hand)
+        player_val = self.game.hand_value(player_hand)
         dealer_val = self.game.hand_value(self.game.dealer_hand[:1])  # Dealer shows only one card
 
         # Fill background
@@ -215,7 +242,7 @@ class PlayerBlackjack:
             self.screen.blit(suggestion_text, suggestion_rect)
 
         # Render player cards
-        for i in self.game.player_hand:
+        for i in player_hand:
             player_score = pygame.font.Font(None, 30).render(str(i[0]), True, "black")
             pygame.draw.rect(self.screen, 'white', [player_x_position, player_y_position, 100, 150], 0, 5)
             # Draw the text inside the rectangle
