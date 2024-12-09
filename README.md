@@ -26,3 +26,13 @@ Upon choosing one of the games, you can choose which mode to play:
 |s|Stand|
 |d|Double|
 |p|Split|
+
+## Controls (Blackjack Switch Play Mode)
+| Key | Action |
+| --- | --- |
+|s|Switch|
+|1|Hit Hand 1|
+|2|Hit Hand 2|
+|q|Double Hand 1|
+|w|Double Hand 2|
+|t|Stand|
