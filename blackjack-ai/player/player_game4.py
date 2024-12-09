@@ -143,6 +143,7 @@ class PlayerEBlackjack:
         # Display result if screen is available
         pygame.display.flip()
         running = True
+        restart = False
         while running:
             if self.screen:
                 for event in pygame.event.get():
@@ -152,9 +153,11 @@ class PlayerEBlackjack:
                         if event.button == 1:  # Left mouse button
                             if self.button_restart.collidepoint(event.pos):
                                 self.show_hand = False
-                                self.run()
+                                restart = True
+                                running = False
                             elif self.button_quit.collidepoint(event.pos):
                                 running = False
+        if restart: self.run()
 
     def get_key_action(self, event, state):
         """Return 'Hit', 'Double', or 'Stand' based on player input or policy."""
