@@ -3,7 +3,7 @@ A python Blackjack implementaiton with AI assistance.
 ![image](https://github.com/user-attachments/assets/83b63fee-a913-42fd-a7d7-a69a08c6fa65)
 
 ## Dependencies
-pygame
+pygame, matplotlib (for simulations), numpy (for simulations)
 
 ## Run Instructions
 Simply download the repository, navigate to the `blackjack-ai` folder, and run the game with `python main.py`.
